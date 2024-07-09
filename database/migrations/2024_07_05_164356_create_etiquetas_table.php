@@ -9,26 +9,24 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('scanned_codes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('scan_session_id')->constrained()->onDelete('cascade'); 
+        Schema::create('etiquetas', function (Blueprint $table) {
+            $table->id(); 
             $table->string('code')->nullable();
             $table->string('EAN13')->nullable();
             $table->string('EAN14')->nullable();
-            $table->string('EAN128')->nullable();
             $table->string('lote')->nullable(); 
-            $table->string('producto')->nullable();
+            $table->string('description');
+            
             $table->timestamps();
         });
     }
-
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('scanned_codes');
+        Schema::dropIfExists('etiquetas');
     }
 };

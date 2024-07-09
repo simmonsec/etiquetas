@@ -3,8 +3,9 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-
+use Inertia\Inertia; 
+use App\Http\Controllers\ScanSessionController; 
+use App\Http\Controllers\EtiquetaController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -17,19 +18,18 @@ use Inertia\Inertia;
 */
 
 
-use App\Http\Controllers\ProductController;
 
 
 Route::get('/scan-product', function () {
     return Inertia::render('ScanProduct');
 });
 
-Route::get('/api/product/{code}', [ProductController::class, 'show']);
-Route::get('/api/scanned-codes/latest', [ProductController::class, 'latestScannedCodes']);
 
-
-
-
+Route::get('/api/sesion/', [EtiquetaController::class, 'sesion']);
+Route::get('/api/product/{code}', [EtiquetaController::class, 'show']);
+Route::get('/api/scanned-codes/latest', [EtiquetaController::class, 'latestScannedCodes']);
+Route::post('/scan-session/start', [ScanSessionController::class, 'startSession']);
+Route::post('/scan-session/end/{id}', [ScanSessionController::class, 'endSession']);
 
 
 Route::get('/', function () {

@@ -11,15 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('scanned_codes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('scan_session_id')->constrained()->onDelete('cascade'); 
+        Schema::create('scan_sessions', function (Blueprint $table) {
+            $table->id(); 
             $table->string('code')->nullable();
             $table->string('EAN13')->nullable();
             $table->string('EAN14')->nullable();
             $table->string('EAN128')->nullable();
             $table->string('lote')->nullable(); 
             $table->string('producto')->nullable();
+            $table->string('status')->default('INICIAR');
+            $table->string('etiqueta')->nullable();
+            $table->integer('invalidas')->default(0);
+            $table->integer('total_scans')->default(0);
             $table->timestamps();
         });
     }
@@ -29,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('scanned_codes');
+        Schema::dropIfExists('scan_sessions');
     }
 };
