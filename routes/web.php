@@ -20,7 +20,7 @@ use App\Http\Controllers\EtiquetaController;
 
 
 
-Route::get('/scan-product', function () {
+Route::get('/', function () {
     return Inertia::render('ScanProduct');
 });
 
@@ -32,7 +32,7 @@ Route::post('/scan-session/start', [ScanSessionController::class, 'startSession'
 Route::post('/scan-session/end/{id}', [ScanSessionController::class, 'endSession']);
 
 
-Route::get('/', function () {
+Route::get('/wl', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
