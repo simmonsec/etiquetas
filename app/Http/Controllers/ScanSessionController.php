@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\Models\ScanSession;
-
+use Illuminate\Support\Facades\Log;
 class ScanSessionController extends Controller
 {
     public function startSession()
@@ -20,8 +20,18 @@ class ScanSessionController extends Controller
             $session = ScanSession::create(['status' => 'INICIAR']);
         }
 
+        $activeSession = ScanSession::where('status', 'INICIAR')->first();
       
-        return response()->json($session);
+        return response()->json($activeSession);
+    }
+
+    
+    public function getSession()
+    {
+
+        $sesionActiva = ScanSession::where('status', '!=', 'FINALIZADA')->latest()->first();
+        Log::alert($sesionActiva);
+        return response()->json($sesionActiva);
     }
 
     public function endSession($id, Request $request)

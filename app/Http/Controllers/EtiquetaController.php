@@ -18,6 +18,89 @@ class EtiquetaController extends Controller
     {
     }
 
+    public function getEtiquetaFormato($codigo) {
+        $EAN13 = null;
+        $EAN14 = null;
+        $EAN128 = null;
+    
+        if (strlen($codigo) == 13) {
+            // Si el código tiene 13 dígitos, es un EAN13 
+            $EAN13 = $codigo;
+        } elseif (strlen($codigo) > 13 && substr($codigo, 0, 2) == '01' && substr($codigo, 16, 2) == '17') {
+            // Si el código cumple con las condiciones de ser EAN128
+            $EAN128 = $codigo;
+            $EAN14 = substr($codigo, 2, 14); // Obtengo el EAN14 desde el EAN128
+        } else {
+            // Devolver un mensaje de error si la etiqueta no es EAN13 o EAN128 válida
+            return response()->json(['error' => 'Código de etiqueta no válido. La longitud no pertenece a los EAN13 o el formato EAN128 no es válido.'], 404);
+        }
+    
+        // Devolver los códigos encontrados en formato JSON si son válidos
+        return response()->json(['EAN13' => $EAN13, 'EAN14' => $EAN14, 'EAN128' => $EAN128], 200);
+    }
+
+    public function crearNuevo($EAN13,$EAN14,$EAN128){
+             // Buscar en la base de datos cuando es por primera vez
+             try {
+                $db4DService = new Conexion4k();
+            
+                if ($EAN13!='null') {
+                    Log::alert('BUSCAR POR EL EAN13: '.$EAN13 );
+                    $ean13 = $this->ean13($db4DService, $EAN13, 1);
+                    $ean14 = $ean13 ? $this->ean14($db4DService, $ean13->original['PRODUCT_ID_CORP'], 1) : null;
+                } else {
+                    Log::alert('BUSCAR POR EL EAN14');
+                    $ean14 = $this->ean14($db4DService, $EAN14, 2);
+                    $ean13 = $ean14 ? $this->ean13($db4DService, $ean14->original['Product_Id_Corp'], 2) : null;
+                }
+
+                if (!$ean13 || !$ean14) {
+                    throw new \Exception('No se encontraron datos válidos para EAN13 o EAN14');
+                }
+
+                $cabecera = [
+                    'code' => $ean13->original['PRODUCT_ID'],
+                    'EAN13' => $EAN13 ?: $ean13->original['CODE_PROV_O_ALT'],
+                    'EAN14' => $ean14->original['CodigoBarras'] ?? null,
+                    'EAN128' => $EAN128 ?? 0,
+                    'lote' => $EAN128 ? substr($EAN128, 26) : 0,
+                    'etiqueta' => 'PROCESANDO',
+                    'producto' => $ean13->original['DESCRIPTION'] ?? null,
+                ];
+
+
+                $detalleEtiqueta = [ 
+                    'code' => $ean13->original['PRODUCT_ID'],
+                    'EAN13' => ($EAN13) ? $EAN13 : null,
+                    'EAN14' => $ean14->original['CodigoBarras'] ?? null,
+                    'EAN128' => $EAN128 ?? null,
+                    'lote' => $EAN128 ? substr($EAN128, 26) : 0,
+                    'producto' => $ean13->original['DESCRIPTION'] ?? null,
+                ];  
+
+                // Generar un ID único basado en la fecha
+                $timestamp = time();
+                $id = "code_" . $timestamp;
+
+                // Agregar el ID al array de respuesta
+                $cabecera['id'] = $id;
+                $detalleEtiqueta['id'] = $id;
+
+            
+                return response()->json(['cabecera' => $cabecera, 'detalleEtiqueta' => $detalleEtiqueta], 200);
+
+            } catch (\Throwable $th) {
+                Log::error("Error al buscar y actualizar la base de datos: " . $th);
+                return response()->json(['error' => 'NO SE PUDO CONSEGUIR LA ETIQUETA CONSULTADA'], 500);
+            } finally {
+                if (isset($db4DService)) {
+                    $db4DService->closeConnection();
+                }
+            }
+    }
+    
+
+   
     public function consulta(Conexion4k $db4DService, $sql)
     {
         try {
@@ -47,23 +130,23 @@ class EtiquetaController extends Controller
         } catch (\Exception $e) {
             Log::error('Excepción capturada: ' . $e->getMessage());
             return [];
-        } 
+        }
     }
-    public function ean13(Conexion4k $db4DService,$ean13,$busqueda)
+    public function ean13(Conexion4k $db4DService, $ean13, $busqueda)
     {
         // busqueda 1 : es si entro el codigo de barra EAN13 Al input
         // busqueda 2 : Es que entro al input el EAN128 y con el se consiguio el EAN14 y se busca por el PRODUCT_ID_CORP porque es el que se relaciona con el EAN14
-        if ($busqueda==1) {
+        if ($busqueda == 1) {
             $sql = "SELECT CODE_PROV_O_ALT,PRODUCT_ID_CORP, PRODUCT_ID, PRODUCT_NAME, DESCRIPTION, CATEGORY 
             FROM INVT_Ficha_Principal 
             WHERE CODE_PROV_O_ALT='$ean13'";
-        }else{
+        } else {
             $sql = "SELECT CODE_PROV_O_ALT,PRODUCT_ID_CORP, PRODUCT_ID, PRODUCT_NAME, DESCRIPTION, CATEGORY 
             FROM INVT_Ficha_Principal 
             WHERE PRODUCT_ID_CORP='$ean13'";
         }
-       
-        
+
+
         try {
             $datos13 = $this->consulta($db4DService, $sql);
 
@@ -74,62 +157,54 @@ class EtiquetaController extends Controller
 
             // Acceder al primer resultado (asumiendo que la consulta devuelve un solo resultado)
             $producto = $datos13[0];
-            Log::alert( $producto);
-            
- 
+            Log::alert($producto);
+
+
             // Devolver respuesta JSON con los datos de la segunda consulta
             return response()->json($producto);
-
         } catch (\Exception $e) {
             Log::error('Excepción capturada al obtener el producto: ' . $e->getMessage());
             return response()->json(['error' => 'Excepción capturada al obtener el producto'], 500);
         }
     }
 
-    public function ean14(Conexion4k $db4DService,$product_id_corp=0,$busqueda)
-    { 
-        try {  
+    public function ean14(Conexion4k $db4DService, $product_id_corp = 0, $busqueda)
+    {
+        try {
             // Realizar la segunda consulta
-            if ($busqueda==1) {
+            if ($busqueda == 1) {
                 $sql2 = "SELECT * FROM INVT_CodigosBarras_Adic WHERE Product_Id_Corp='$product_id_corp'";
                 $datos14 = $this->consulta($db4DService, $sql2);
-            }else{
+            } else {
                 $sql2 = "SELECT * FROM INVT_CodigosBarras_Adic WHERE CodigoBarras='$product_id_corp'";
                 $datos14 = $this->consulta($db4DService, $sql2);
             }
-         
 
-             
+
+
             // Verificar si la segunda consulta devolvió resultados
             if (empty($datos14)) {
                 return response()->json(['error' => 'No se encontraron resultados adicionales para el producto'], 404);
             }
 
             $producto14 = $datos14[0];
-            Log::alert( $producto14);
+            Log::alert($producto14);
             // Devolver respuesta JSON con los datos de la segunda consulta
             return response()->json($producto14);
-
         } catch (\Exception $e) {
             Log::error('Excepción capturada al obtener el producto: ' . $e->getMessage());
             return response()->json(['error' => 'Excepción capturada al obtener el producto'], 500);
         }
     }
 
-    public function sesion()
-    {
-        
-        $sesionActiva = ScanSession::where('status', '!=', 'FINALIZADA')->latest()->first();
+   
 
-        return response()->json($sesionActiva);
-    }
- 
-    public function show( $codigo)
+    public function show($codigo)
     {
         $EAN13 = null;
         $EAN14 = null;
         $EAN128 = null;
-    
+
         if (strlen($codigo) == 13) {
             // Si el código tiene 13 dígitos, es un EAN13 
             $EAN13 = $codigo;
@@ -141,13 +216,13 @@ class EtiquetaController extends Controller
             // Devolver un mensaje de error si la etiqueta no es 13-14 o 128
             return response()->json(['error' => 'Código de etiqueta no válido, la longitud no pertenece a los ean13 o ean128'], 404);
         }
-    
+
         // Obtener la última sesión de escaneo no finalizada
         $sesionActiva = ScanSession::where('status', '!=', 'FINALIZADA')->latest()->first();
-    
+
         if ($sesionActiva) {
             Log::alert('SESION ACTIVADA');
-    
+
             // Verificar si ya existe una etiqueta asociada a la sesión activa
             if (!$sesionActiva->etiqueta) {
                 // Si el campo etiqueta es null, actualizar los campos 'code', 'EAN13', 'EAN14', 'lote' encontrados de etiqueta
@@ -155,11 +230,11 @@ class EtiquetaController extends Controller
                 Log::alert('EAN13: ' . $EAN13);
                 Log::alert('EAN14: ' . $EAN14);
                 Log::alert('EAN128: ' . $EAN128);
-    
+
                 // Buscar en la base de datos cuando es por primera vez
                 try {
                     $db4DService = new Conexion4k();
-                    
+
                     if ($EAN13) {
                         Log::alert('BUSCAR POR EL EAN13');
                         $ean13 = $this->ean13($db4DService, $EAN13, 1);
@@ -169,11 +244,11 @@ class EtiquetaController extends Controller
                         $ean14 = $this->ean14($db4DService, $EAN14, 2);
                         $ean13 = $ean14 ? $this->ean13($db4DService, $ean14->original['Product_Id_Corp'], 2) : null;
                     }
-                
+
                     if (!$ean13 || !$ean14) {
                         throw new \Exception('No se encontraron datos válidos para EAN13 o EAN14');
                     }
-                
+
                     $sesionActiva->update([
                         'code' => $ean13->original['PRODUCT_ID'],
                         'EAN13' => $EAN13 ?: $ean13->original['CODE_PROV_O_ALT'],
@@ -183,7 +258,7 @@ class EtiquetaController extends Controller
                         'etiqueta' => 'PROCESANDO',
                         'producto' => $ean13->original['DESCRIPTION'] ?? null,
                     ]);
-                
+
                     $scannedCodeData = [
                         'scan_session_id' => $sesionActiva->id,
                         'code' => $ean13->original['PRODUCT_ID'],
@@ -192,10 +267,10 @@ class EtiquetaController extends Controller
                         'EAN128' => $EAN128 ?? null,
                         'lote' => $EAN128 ? substr($EAN128, 26) : 0,
                         'producto' => $ean13->original['DESCRIPTION'] ?? null,
-                    ]; 
-                
+                    ];
+
                     ScannedCode::create($scannedCodeData);
-                
+
                     return response()->json($scannedCodeData);
                 } catch (\Throwable $th) {
                     Log::error("Error al buscar y actualizar la base de datos: " . $th);
@@ -211,15 +286,15 @@ class EtiquetaController extends Controller
                 Log::alert("EAN13 ingresado: " . $EAN13);
                 Log::alert("sesionActiva->EAN14: " . $sesionActiva->EAN14);
                 Log::alert("EAN14 ingresado: " . $EAN14);
-    
-               
- 
+
+
+
                 if (($EAN13 && $sesionActiva->EAN13 !== $EAN13) || ($EAN14 && $sesionActiva->EAN14 !== $EAN14)) {
                     Log::alert('Entró aquí porque la etiqueta ingresada no es la misma que se escaneó al inicio para la sesión activa, y la guarda como inválida');
-    
+
                     $EAN13INVALIDO = $EAN13 && $sesionActiva->EAN13 !== $EAN13 ? $EAN13 : null;
                     $EAN128INVALIDO = $EAN14 && $sesionActiva->EAN14 !== $EAN14 ? $codigo : null;
-    
+
                     $etiqueta = new Etiqueta();
                     $scannedCodeData = [
                         'scan_session_id' => $sesionActiva->id,
@@ -230,11 +305,11 @@ class EtiquetaController extends Controller
                         'lote' => 'INVALIDO',
                         'producto' => 'INVALIDO',
                     ];
-    
+
                     ScannedCode::create($scannedCodeData);
                     return response()->json($etiqueta);
-                }  else {
-                    if ($sesionActiva->lote == 0 && !empty($EAN128) ) {
+                } else {
+                    if ($sesionActiva->lote == 0 && !empty($EAN128)) {
                         $sesionActiva->update([
                             'lote' => substr($EAN128, 26),
                         ]);
@@ -257,7 +332,7 @@ class EtiquetaController extends Controller
             return response()->json(['error' => 'Etiqueta no encontrada o no hay sesión activa.'], 404);
         }
     }
-    
+
 
 
     public function latestScannedCodes()

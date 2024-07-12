@@ -24,8 +24,11 @@ Route::get('/', function () {
     return Inertia::render('ScanProduct');
 });
 
+ 
+Route::get('/getSesion', [ScanSessionController::class, 'getSession']);
+Route::get('/getEtiquetaFormato/{code}', [EtiquetaController::class, 'getEtiquetaFormato']);
+Route::get('/crearNuevo/{ean13}/{ean14}/{ean128}', [EtiquetaController::class, 'crearNuevo']);
 
-Route::get('/api/sesion/', [EtiquetaController::class, 'sesion']);
 Route::get('/api/product/{code}', [EtiquetaController::class, 'show']);
 Route::get('/api/scanned-codes/latest', [EtiquetaController::class, 'latestScannedCodes']);
 Route::post('/scan-session/start', [ScanSessionController::class, 'startSession']);
