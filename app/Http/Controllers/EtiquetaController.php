@@ -43,7 +43,8 @@ class EtiquetaController extends Controller
              // Buscar en la base de datos cuando es por primera vez
              try {
                 $db4DService = new Conexion4k();
-            
+                $ean13=null;
+                $ean14=null;
                 if ($EAN13!='null') {
                     Log::alert('BUSCAR POR EL EAN13: '.$EAN13 );
                     $ean13 = $this->ean13($db4DService, $EAN13, 1);
@@ -60,7 +61,7 @@ class EtiquetaController extends Controller
 
                 $cabecera = [
                     'code' => $ean13->original['PRODUCT_ID'],
-                    'EAN13' => $EAN13 ?: $ean13->original['CODE_PROV_O_ALT'],
+                    'EAN13' => ($EAN13) ? $ean13->original['CODE_PROV_O_ALT'] : $EAN13,
                     'EAN14' => $ean14->original['CodigoBarras'] ?? null,
                     'EAN128' => $EAN128 ?? 0,
                     'lote' => $EAN128 ? substr($EAN128, 26) : 0,
@@ -71,22 +72,14 @@ class EtiquetaController extends Controller
 
                 $detalleEtiqueta = [ 
                     'code' => $ean13->original['PRODUCT_ID'],
-                    'EAN13' => ($EAN13) ? $EAN13 : null,
+                    'EAN13' => ($EAN13) ? $EAN13 : '',
                     'EAN14' => $ean14->original['CodigoBarras'] ?? null,
-                    'EAN128' => $EAN128 ?? null,
+                    'EAN128' => ($EAN128) ? $EAN128 : '',
                     'lote' => $EAN128 ? substr($EAN128, 26) : 0,
                     'producto' => $ean13->original['DESCRIPTION'] ?? null,
                 ];  
 
-                // Generar un ID único basado en la fecha
-                $timestamp = time();
-                $id = "code_" . $timestamp;
-
-                // Agregar el ID al array de respuesta
-                $cabecera['id'] = $id;
-                $detalleEtiqueta['id'] = $id;
-
-            
+               
                 return response()->json(['cabecera' => $cabecera, 'detalleEtiqueta' => $detalleEtiqueta], 200);
 
             } catch (\Throwable $th) {
