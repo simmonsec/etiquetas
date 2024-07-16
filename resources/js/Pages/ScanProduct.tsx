@@ -70,7 +70,7 @@ export default function ScanProduct() {
             setStatus(session.status); // Establecer el estado según la sesión encontrada
         } else {
             // No existe una sesión activa en el localStorage
-            console.log('No hay una sesión activa en el localStorage.');
+            //console.log('No hay una sesión activa en el localStorage.');
             setStatus('');
         }
 
@@ -91,7 +91,7 @@ export default function ScanProduct() {
     const handleButtonClick = async () => {
         try {
             if (status === '') {
-                console.log("Entro a pedir crear una sesión");
+                //console.log("Entro a pedir crear una sesión");
                 await generarSesion();
             } else if (status === 'INICIAR') {
                 await cerrarSesion();
@@ -109,7 +109,7 @@ export default function ScanProduct() {
 
 
     const generarSesion = async () => {
-        console.log("Vamos a crear una sesión");
+        //console.log("Vamos a crear una sesión");
         setIsLoading(true);
 
         try {
@@ -133,7 +133,7 @@ export default function ScanProduct() {
                 producto: null
             };
 
-            console.log("Se inició la sesión localmente", sessionData);
+           // console.log("Se inició la sesión localmente", sessionData);
 
             // Almacenar datos de la sesión en localStorage
             localStorage.setItem('sessionData', JSON.stringify(sessionData));
@@ -208,7 +208,7 @@ export default function ScanProduct() {
                     setEan14(ean14);
                     setEan128(ean128);
 
-                    console.log("RESPUESTA DEL FORMATO: ", response.data, ean13, ean14, ean128);
+                   // console.log("RESPUESTA DEL FORMATO: ", response.data, ean13, ean14, ean128);
 
                     // Verificar la existencia del ítem 'gestionesEtiqueta' en el localStorage
                     const storedGestionesEtiqueta = localStorage.getItem('gestionesEtiqueta');
@@ -240,7 +240,7 @@ export default function ScanProduct() {
                             gestionesEtiqueta[timestamp] = [invalidScannedCode];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
 
-                            console.log('Etiqueta inválida guardada: ', invalidScannedCode);
+                           // console.log('Etiqueta inválida guardada: ', invalidScannedCode);
                         } else {
                             // La etiqueta es válida
                             if (sessionData.lote == 0 && ean128) {
@@ -260,16 +260,16 @@ export default function ScanProduct() {
                             gestionesEtiqueta[timestamp] = [validScannedCode];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
 
-                            console.log('Etiqueta válida guardada: ', validScannedCode);
+                           // console.log('Etiqueta válida guardada: ', validScannedCode);
                         }
                     } else {
-                        console.log("El ítem 'gestionesEtiqueta' no existe en el localStorage.");
+                       // console.log("El ítem 'gestionesEtiqueta' no existe en el localStorage.");
 
                         try {
                             const responseNuevo = await axios.get(`/crearNuevo/${ean13}/${ean14}/${ean128}`);
 
                             const datos_sessionData = responseNuevo.data.cabecera;
-                            console.log("datos_sessionData", datos_sessionData)
+                          //  console.log("datos_sessionData", datos_sessionData)
                             let sessionData = JSON.parse(localStorage.getItem('sessionData')) || {};
 
                             sessionData.code = datos_sessionData.code;
@@ -298,12 +298,12 @@ export default function ScanProduct() {
                             gestionesEtiqueta[timestamp] = [datos_gestionesEtiqueta];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
 
-                            console.log("Datos actualizados en el localStorage: ", {
+                            /* console.log("Datos actualizados en el localStorage: ", {
                                 sessionData: datos_sessionData,
                                 gestionesEtiqueta: datos_gestionesEtiqueta
                             });
 
-                            console.log(responseNuevo.data);
+                            console.log(responseNuevo.data); */
                         } catch (error) {
                             console.error('Error al obtener datos nuevos: ', error);
                         }
@@ -355,9 +355,9 @@ export default function ScanProduct() {
         if (newStatus === 'INICIAR') {
             // generaba la nueva sesion local sotrage y la pasamos a sesion 
             setIsLoading(false);
-            console.log('INICIAR')
+            //console.log('INICIAR')
         } else if (newStatus === 'FINALIZAR') {
-            console.log("ESTA FINALIZANDO....")
+            //console.log("ESTA FINALIZANDO....")
             localStorage.removeItem('sessionData');
             localStorage.removeItem('gestionesEtiqueta');
 
@@ -467,12 +467,12 @@ export default function ScanProduct() {
     
                 // Si hay códigos escaneados, actualizar el estado del componente
                 if (scannedCodes.length > 0) {
-                    console.log('VALIDAR SI HAY MAS DE 0', scannedCodes[0]);
+                    //console.log('VALIDAR SI HAY MAS DE 0', scannedCodes[0]);
                     setStatus('INICIAR');
-                    console.log("estado finalizar..........")
+                    //console.log("estado finalizar..........")
                 } else {
                     setStatus('');
-                    console.log('VALIDAR SI HAY MENOS DE ', scannedCodes[0]);
+                   // console.log('VALIDAR SI HAY MENOS DE ', scannedCodes[0]);
                 }
             }
         } catch (err) {
