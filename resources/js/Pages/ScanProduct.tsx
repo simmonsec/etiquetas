@@ -560,17 +560,18 @@ export default function ScanProduct() {
             </div>
             {scannedCodes.length > 0 ? (
                 <div className="bg-gray-900 py-2 px-2 mx-auto max-w-screen-xl  lg:py-10 rounded-md border">
-                    <div className="grid mt-4 content-normal" style={{ gridTemplateColumns: "0.8fr 0.5fr 3fr" }}>
+                    <div className="grid mt-4 content-normal" style={{ gridTemplateColumns: "0.8fr 0.6fr 3fr" }}>
                         <div className="col-span-1">
                             <ScrollArea className="h-[490px] max-w-[590px] rounded-md border p-4 bg-slate-50 overflow-auto">
                                 <h4 className="mb-4 text-sm font-medium leading-none">  <CardDescription className='text-[#322b9d]'>EAN 128</CardDescription></h4>
                                 {scannedCodes.length > 0 ? (
                                     scannedCodes.map((code, index) => (
                                         <div key={index} className="md:text-3xl">
+                                             <span className="text-xs text-gray-300">{code.EAN128 ? scannedCodes.length - index : ''}</span>
                                             {code.lote === 'INVALIDO' ? (
-                                                <span className="text-red-500 italic">{code.EAN128}</span>
+                                                <span className="text-red-500 italic"> {code.EAN128 ? code.EAN128.slice(0, 30) : ''}  </span>
                                             ) : (
-                                                <span>{code.EAN128}</span>
+                                                <span className="text-green-700">{code.EAN128 ? code.EAN128.slice(0, 30) : ''} </span>
                                             )}
                                         </div>
                                     ))
@@ -581,17 +582,22 @@ export default function ScanProduct() {
 
                         </div>
                         <div className="col-span-1  px-2">
-                            <ScrollArea className="h-[490px] max-w-[247px] rounded-md border p-4 bg-slate-50 overflow-auto">
+                            <ScrollArea className="h-[490px] max-w-[260px] rounded-md border p-4 bg-slate-50 overflow-auto">
                                 <h4 className="mb-4 text-sm font-medium leading-none"> <CardDescription className='text-[#322b9d]'>EAN 13</CardDescription>  </h4>
                                 {scannedCodes.length > 0 ? (
                                     scannedCodes.map((code, index) => (
                                         <div key={index} className="md:text-3xl">
-                                            {code.lote === 'INVALIDO' ? (
-                                                <span className="text-red-500 italic">{code.EAN13}</span>
-                                            ) : (
-                                                <span>{code.EAN13}</span>
-                                            )}
-                                        </div>
+                                        <span className="text-xs text-gray-300">{code.EAN13 ? scannedCodes.length - index : ''}</span>
+                                        {code.lote === 'INVALIDO' ? (
+                                            <span className="text-red-500 italic">
+                                                {code.EAN13 ? code.EAN13.slice(0, 13) : ''}
+                                            </span>
+                                        ) : (
+                                            <span className="text-green-700">
+                                                {code.EAN13 ? code.EAN13.slice(0, 13) : ''}
+                                            </span>
+                                        )}
+                                    </div>
                                     ))
                                 ) : (
                                     <div className="text-lg text-red-500">Aún no hay productos escaneados. Por favor, escanee uno.</div>
