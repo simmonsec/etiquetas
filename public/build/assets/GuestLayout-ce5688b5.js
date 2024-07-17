@@ -1,0 +1,1 @@
+import{j as e}from"./app-37e2d2d5.js";function t({children:s}){return e.jsx("div",{className:"min-h-screen bg-gray-900",children:e.jsx("div",{className:"flex items-center justify-center h-screen",children:s})})}export{t as G};

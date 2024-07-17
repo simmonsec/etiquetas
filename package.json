@@ -7,6 +7,8 @@
         "build": "npm run set-ip && tsc && vite build"
     },
     "devDependencies": {
+        "eslint": "^8.57.0",
+        "eslint-plugin-react": "^7.34.3",
         "@eslint/compat": "^1.1.1",
         "@eslint/js": "^9.6.0",
         "@headlessui/react": "^1.4.2",
@@ -18,9 +20,7 @@
         "@types/ziggy-js": "^1.3.2",
         "@vitejs/plugin-react": "^4.0.3",
         "autoprefixer": "^10.4.12",
-        "axios": "^1.1.2",
-        "eslint": "^9.6.0",
-        "eslint-plugin-react": "^7.34.3",
+        "axios": "^1.1.2", 
         "globals": "^15.8.0",
         "laravel-vite-plugin": "^0.8.0",
         "postcss": "^8.4.18",

@@ -18,10 +18,34 @@ import { Alert, AlertDescription, AlertTitle } from "@/shadcn/ui/alert"
 import { Head } from '@inertiajs/react';
 
 export default function ScanProduct() {
+    //011786122290095617000000102407
+    //7861222900959
     const [code, setCode] = useState('');
-    const [sesionEtiqueta, setSesionEtiqueta] = useState(null);
+    // Define el tipo para sesionEtiqueta
+    type EtiquetaSesion = {
+        code: string;
+        producto: string;
+        lote: string | number;
+    } | null; // Permite null como un valor válido para este tipo
+
+    const [sesionEtiqueta, setSesionEtiqueta] = useState<EtiquetaSesion>({
+        code: '',
+        producto: '',
+        lote: 0
+    });
+
     const [error, setError] = useState('');
-    const [scannedCodes, setScannedCodes] = useState([]);
+    // Define el tipo de los códigos escaneados
+    type ScannedCode = {
+        code: string;
+        EAN13: string;
+        EAN14: string;
+        EAN128: string;
+        lote: string;
+        producto: string;
+        timestamp: number;
+    };
+    const [scannedCodes, setScannedCodes] = useState<ScannedCode[]>([]);
     const [status, setStatus] = useState('')
     const [StatusEtiqueta, setStatusEtiqueta] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -133,7 +157,7 @@ export default function ScanProduct() {
                 producto: null
             };
 
-           // console.log("Se inició la sesión localmente", sessionData);
+            // console.log("Se inició la sesión localmente", sessionData);
 
             // Almacenar datos de la sesión en localStorage
             localStorage.setItem('sessionData', JSON.stringify(sessionData));
@@ -166,16 +190,16 @@ export default function ScanProduct() {
     };
 
     // Tomo el valor del input antes que le de enter
-    const ingresoEtiqueta = (e) => {
+    const ingresoEtiqueta = (e: React.ChangeEvent<HTMLInputElement>) => {
         const valor = e.target.value;
         if (valor.length >= 13 || valor.length <= 30) {
             setCode(valor);
-             
+
         } else {
             setError('El código ingresado no cumple con el formato.');
             alertas();
         }
-       
+
 
     };
 
@@ -183,9 +207,9 @@ export default function ScanProduct() {
     const searchTimer = useRef<NodeJS.Timeout | null>(null); // Inicializa como NodeJS.Timeout | null
 
     // Cuando le realiza el enter al input de busqueda de etiqueta
-    const accionScanner = async (e) => {
+    const accionScanner = async (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
-            const scannedCode = e.target.value.trim(); // Obtener el código escaneado limpio
+            const scannedCode = inputRef.current?.value.trim(); // Obtener el código escaneado limpio
 
             if (scannedCode) {
                 // Limpiar el timer de búsqueda previo
@@ -194,7 +218,11 @@ export default function ScanProduct() {
                 }
 
                 setIsLoading(true);
-                inputRef.current.disabled = true; // Deshabilitar el input
+                // Verificar si inputRef.current no es null antes de deshabilitarlo
+                if (inputRef.current) {
+                    inputRef.current.disabled = true; // Deshabilitar el input
+                }
+
 
                 try {
                     // Verificar el formato del código escaneado
@@ -208,7 +236,7 @@ export default function ScanProduct() {
                     setEan14(ean14);
                     setEan128(ean128);
 
-                   // console.log("RESPUESTA DEL FORMATO: ", response.data, ean13, ean14, ean128);
+                    // console.log("RESPUESTA DEL FORMATO: ", response.data, ean13, ean14, ean128);
 
                     // Verificar la existencia del ítem 'gestionesEtiqueta' en el localStorage
                     const storedGestionesEtiqueta = localStorage.getItem('gestionesEtiqueta');
@@ -239,8 +267,9 @@ export default function ScanProduct() {
 
                             gestionesEtiqueta[timestamp] = [invalidScannedCode];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
-
-                           // console.log('Etiqueta inválida guardada: ', invalidScannedCode);
+                            // Actualizar el índice en localStorage después de guardar
+                            updateIndex(scannedCode, invalidScannedCode);
+                            // console.log('Etiqueta inválida guardada: ', invalidScannedCode);
                         } else {
                             // La etiqueta es válida
                             if (sessionData.lote == 0 && ean128) {
@@ -259,26 +288,37 @@ export default function ScanProduct() {
 
                             gestionesEtiqueta[timestamp] = [validScannedCode];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
-
-                           // console.log('Etiqueta válida guardada: ', validScannedCode);
+                            // Actualizar el índice en localStorage después de guardar
+                            updateIndex(scannedCode, validScannedCode);
+                            // console.log('Etiqueta válida guardada: ', validScannedCode);
                         }
                     } else {
-                       // console.log("El ítem 'gestionesEtiqueta' no existe en el localStorage.");
+                        // console.log("El ítem 'gestionesEtiqueta' no existe en el localStorage.");
 
                         try {
                             const responseNuevo = await axios.get(`/crearNuevo/${ean13}/${ean14}/${ean128}`);
 
                             const datos_sessionData = responseNuevo.data.cabecera;
-                          //  console.log("datos_sessionData", datos_sessionData)
-                            let sessionData = JSON.parse(localStorage.getItem('sessionData')) || {};
+                            //  console.log("datos_sessionData", datos_sessionData)
+                            let sessionData = JSON.parse(localStorage.getItem('sessionData') || '{}') as {
+                                code: string;
+                                EAN13: string;
+                                EAN14: string;
+                                EAN128: string;
+                                lote: string;
+                                etiqueta: string;
+                                producto: string;
+                            };
 
-                            sessionData.code = datos_sessionData.code;
-                            sessionData.EAN13 = datos_sessionData.EAN13;
-                            sessionData.EAN14 = datos_sessionData.EAN14;
-                            sessionData.EAN128 = (datos_sessionData.EAN128) ? datos_sessionData.EAN128 : '';
-                            sessionData.lote = datos_sessionData.lote;
-                            sessionData.etiqueta = datos_sessionData.etiqueta;
-                            sessionData.producto = datos_sessionData.producto;
+                            // Asignar valores asegurándose de manejar valores nulos
+                            sessionData.code = datos_sessionData.code || '';
+                            sessionData.EAN13 = datos_sessionData.EAN13 || '';
+                            sessionData.EAN14 = datos_sessionData.EAN14 || '';
+                            sessionData.EAN128 = datos_sessionData.EAN128 || '';
+                            sessionData.lote = datos_sessionData.lote || '';
+                            sessionData.etiqueta = datos_sessionData.etiqueta || '';
+                            sessionData.producto = datos_sessionData.producto || '';
+
 
                             // Guardar el sessionData actualizado en el localStorage
                             localStorage.setItem('sessionData', JSON.stringify(sessionData));
@@ -286,18 +326,19 @@ export default function ScanProduct() {
                             const datos_detalleEtiqueta = responseNuevo.data.detalleEtiqueta;
                             const timestamp = Date.now();
                             const datos_gestionesEtiqueta = {
-                                code: datos_detalleEtiqueta.code,
-                                EAN13: (datos_detalleEtiqueta.EAN13) ? ean13 : '',
-                                EAN14: datos_detalleEtiqueta.EAN14,
-                                EAN128: (datos_detalleEtiqueta.EAN128) ? ean128 : '',
-                                lote: datos_detalleEtiqueta.lote,
-                                producto: datos_detalleEtiqueta.producto,
+                                code: datos_detalleEtiqueta.code || '',
+                                EAN13: datos_detalleEtiqueta.EAN13 || '',
+                                EAN14: datos_detalleEtiqueta.EAN14 || '',
+                                EAN128: datos_detalleEtiqueta.EAN128 || '',
+                                lote: datos_detalleEtiqueta.lote || '',
+                                producto: datos_detalleEtiqueta.producto || '',
                                 timestamp: timestamp
                             };
 
                             gestionesEtiqueta[timestamp] = [datos_gestionesEtiqueta];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
-
+                            // Actualizar el índice en localStorage después de guardar
+                            updateIndex(scannedCode, datos_gestionesEtiqueta);
                             /* console.log("Datos actualizados en el localStorage: ", {
                                 sessionData: datos_sessionData,
                                 gestionesEtiqueta: datos_gestionesEtiqueta
@@ -323,10 +364,17 @@ export default function ScanProduct() {
                     setIsLoading(false);
                 }
 
-                inputRef.current.disabled = false; // Habilitar el input nuevamente
-                inputRef.current.focus(); // Enfocar el input
+                // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                if (inputRef.current) {
+                    inputRef.current.disabled = false; // Habilitar el input nuevamente
+                    inputRef.current.focus(); // Enfocar el input
+                }
+
+
             } else {
-                inputRef.current.focus(); // Enfocar el input
+                if (inputRef.current) {
+                    inputRef.current.focus(); // Enfocar el input
+                }
                 setIsLoading(false);
                 setError('Código de etiqueta no válido');
                 setDetalleAlerta("Revise el código escaneado.");
@@ -334,6 +382,19 @@ export default function ScanProduct() {
             }
         }
     };
+
+    // Función para actualizar el índice de códigos escaneados en localStorage
+    const updateIndex = useCallback((code: string, scannedCode: ScannedCode) => {
+        // Obtener el índice actual de códigos escaneados del localStorage
+        const currentIndex = localStorage.getItem('scannedCodesIndex');
+        let index: { [key: string]: number } = currentIndex ? JSON.parse(currentIndex) : {};
+
+        // Actualizar el índice con el nuevo código escaneado
+        index[code] = scannedCodes.length - 1; // Usar el índice del último código escaneado
+
+        // Guardar el índice actualizado en localStorage
+        localStorage.setItem('scannedCodesIndex', JSON.stringify(index));
+    }, [scannedCodes]);
 
 
 
@@ -349,7 +410,7 @@ export default function ScanProduct() {
         setIsLoading(false);
     };
 
-    const getStatus = useCallback((newStatus) => {
+    const getStatus = useCallback((newStatus: string) => {
         setIsLoading(true);
 
         if (newStatus === 'INICIAR') {
@@ -437,10 +498,11 @@ export default function ScanProduct() {
                 setScannedCodes([]);
             } else {
                 const gestionesEtiqueta = storedGestionesEtiqueta ? JSON.parse(storedGestionesEtiqueta) : {};
-    
+
                 // Inicializar un array para almacenar los códigos escaneados
                 const scannedCodes = [];
-    
+
+
                 // Recorrer las claves del objeto gestionesEtiqueta
                 for (const timestamp in gestionesEtiqueta) {
                     if (gestionesEtiqueta.hasOwnProperty(timestamp)) {
@@ -448,13 +510,13 @@ export default function ScanProduct() {
                         scannedCodes.push(...gestionesEtiqueta[timestamp]);
                     }
                 }
-    
+
                 // Ordenar los códigos escaneados por timestamp de manera descendente
                 scannedCodes.sort((a, b) => b.timestamp - a.timestamp);
-    
+
                 // Actualizar el estado con los códigos escaneados
                 setScannedCodes(scannedCodes);
-    
+
                 // Verificar si hay códigos inválidos
                 const hayCodigosInvalidos = scannedCodes.some(code => code.EAN13 === 'INVALIDO' || code.EAN128 === 'INVALIDO');
                 if (hayCodigosInvalidos) {
@@ -464,7 +526,7 @@ export default function ScanProduct() {
                     alertas();
                     setEstadoAlerta(true);
                 }
-    
+
                 // Si hay códigos escaneados, actualizar el estado del componente
                 if (scannedCodes.length > 0) {
                     //console.log('VALIDAR SI HAY MAS DE 0', scannedCodes[0]);
@@ -472,7 +534,7 @@ export default function ScanProduct() {
                     //console.log("estado finalizar..........")
                 } else {
                     setStatus('');
-                   // console.log('VALIDAR SI HAY MENOS DE ', scannedCodes[0]);
+                    // console.log('VALIDAR SI HAY MENOS DE ', scannedCodes[0]);
                 }
             }
         } catch (err) {
@@ -480,7 +542,7 @@ export default function ScanProduct() {
             console.error('Error fetching latest scanned codes:', err);
         }
     };
-    
+
 
 
 
@@ -564,20 +626,18 @@ export default function ScanProduct() {
                         <div className="col-span-1">
                             <ScrollArea className="h-[490px] max-w-[590px] rounded-md border p-4 bg-slate-50 overflow-auto">
                                 <h4 className="mb-4 text-sm font-medium leading-none">  <CardDescription className='text-[#322b9d]'>EAN 128</CardDescription></h4>
-                                {scannedCodes.length > 0 ? (
-                                    scannedCodes.map((code, index) => (
+                                {scannedCodes.map((code, index) => (
+                                    code.EAN128 && code.EAN128 !== 'null' && (
                                         <div key={index} className="md:text-3xl">
-                                             <span className="text-xs text-gray-300">{code.EAN128 ? scannedCodes.length - index : ''}</span>
+                                            <span className="text-xs text-gray-300">{code.EAN128 ? scannedCodes.length - index : ''}</span>
                                             {code.lote === 'INVALIDO' ? (
-                                                <span className="text-red-500 italic"> {code.EAN128 ? code.EAN128.slice(0, 30) : ''}  </span>
+                                                <span className="text-red-500 italic">{code.EAN128 ? code.EAN128.slice(0, 30) : ''}</span>
                                             ) : (
-                                                <span className="text-green-700">{code.EAN128 ? code.EAN128.slice(0, 30) : ''} </span>
+                                                <span className="text-green-700">{code.EAN128 ? code.EAN128.slice(0, 30) : ''}</span>
                                             )}
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="text-lg text-red-500">Aún no hay productos escaneados. Por favor, escanee uno.</div>
-                                )}
+                                    )
+                                ))}
                             </ScrollArea>
 
                         </div>
@@ -586,22 +646,25 @@ export default function ScanProduct() {
                                 <h4 className="mb-4 text-sm font-medium leading-none"> <CardDescription className='text-[#322b9d]'>EAN 13</CardDescription>  </h4>
                                 {scannedCodes.length > 0 ? (
                                     scannedCodes.map((code, index) => (
-                                        <div key={index} className="md:text-3xl">
-                                        <span className="text-xs text-gray-300">{code.EAN13 ? scannedCodes.length - index : ''}</span>
-                                        {code.lote === 'INVALIDO' ? (
-                                            <span className="text-red-500 italic">
-                                                {code.EAN13 ? code.EAN13.slice(0, 13) : ''}
-                                            </span>
-                                        ) : (
-                                            <span className="text-green-700">
-                                                {code.EAN13 ? code.EAN13.slice(0, 13) : ''}
-                                            </span>
-                                        )}
-                                    </div>
+                                        code.EAN13 && code.EAN13 !== 'null' && (
+                                            <div key={index} className="md:text-3xl">
+                                                <span className="text-xs text-gray-300">{scannedCodes.length - index}</span>
+                                                {code.lote === 'INVALIDO' ? (
+                                                    <span className="text-red-500 italic">
+                                                        {code.EAN13.slice(0, 13)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-green-700">
+                                                        {code.EAN13.slice(0, 13)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )
                                     ))
                                 ) : (
                                     <div className="text-lg text-red-500">Aún no hay productos escaneados. Por favor, escanee uno.</div>
                                 )}
+
                             </ScrollArea>
                         </div>
                         <div className="col-span-1">

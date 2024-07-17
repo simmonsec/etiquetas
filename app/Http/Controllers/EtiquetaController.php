@@ -18,11 +18,12 @@ class EtiquetaController extends Controller
     {
     }
 
-    public function getEtiquetaFormato($codigo) {
+    public function getEtiquetaFormato($codigo)
+    {
         $EAN13 = null;
         $EAN14 = null;
         $EAN128 = null;
-    
+
         if (strlen($codigo) == 13) {
             // Si el código tiene 13 dígitos, es un EAN13 
             $EAN13 = $codigo;
@@ -34,66 +35,66 @@ class EtiquetaController extends Controller
             // Devolver un mensaje de error si la etiqueta no es EAN13 o EAN128 válida
             return response()->json(['error' => 'Código de etiqueta no válido. La longitud no pertenece a los EAN13 o el formato EAN128 no es válido.'], 404);
         }
-    
+
         // Devolver los códigos encontrados en formato JSON si son válidos
         return response()->json(['EAN13' => $EAN13, 'EAN14' => $EAN14, 'EAN128' => $EAN128], 200);
     }
 
-    public function crearNuevo($EAN13,$EAN14,$EAN128){
-             // Buscar en la base de datos cuando es por primera vez
-             try {
-                $db4DService = new Conexion4k();
-                $ean13=null;
-                $ean14=null;
-                if ($EAN13!='null') {
-                    Log::alert('BUSCAR POR EL EAN13: '.$EAN13 );
-                    $ean13 = $this->ean13($db4DService, $EAN13, 1);
-                    $ean14 = $ean13 ? $this->ean14($db4DService, $ean13->original['PRODUCT_ID_CORP'], 1) : null;
-                } else {
-                    Log::alert('BUSCAR POR EL EAN14');
-                    $ean14 = $this->ean14($db4DService, $EAN14, 2);
-                    $ean13 = $ean14 ? $this->ean13($db4DService, $ean14->original['Product_Id_Corp'], 2) : null;
-                }
-
-                if (!$ean13 || !$ean14) {
-                    throw new \Exception('No se encontraron datos válidos para EAN13 o EAN14');
-                }
-
-                $cabecera = [
-                    'code' => $ean13->original['PRODUCT_ID'],
-                    'EAN13' => ($EAN13) ? $ean13->original['CODE_PROV_O_ALT'] : $EAN13,
-                    'EAN14' => $ean14->original['CodigoBarras'] ?? null,
-                    'EAN128' => $EAN128 ?? 0,
-                    'lote' => $EAN128 ? substr($EAN128, 26) : 0,
-                    'etiqueta' => 'PROCESANDO',
-                    'producto' => $ean13->original['DESCRIPTION'] ?? null,
-                ];
-
-
-                $detalleEtiqueta = [ 
-                    'code' => $ean13->original['PRODUCT_ID'],
-                    'EAN13' => ($EAN13) ? $EAN13 : '',
-                    'EAN14' => $ean14->original['CodigoBarras'] ?? null,
-                    'EAN128' => ($EAN128) ? $EAN128 : '',
-                    'lote' => $EAN128 ? substr($EAN128, 26) : 0,
-                    'producto' => $ean13->original['DESCRIPTION'] ?? null,
-                ];  
-
-               
-                return response()->json(['cabecera' => $cabecera, 'detalleEtiqueta' => $detalleEtiqueta], 200);
-
-            } catch (\Throwable $th) {
-                Log::error("Error al buscar y actualizar la base de datos: " . $th);
-                return response()->json(['error' => 'NO SE PUDO CONSEGUIR LA ETIQUETA CONSULTADA'], 500);
-            } finally {
-                if (isset($db4DService)) {
-                    $db4DService->closeConnection();
-                }
+    public function crearNuevo($EAN13, $EAN14, $EAN128)
+    {
+        // Buscar en la base de datos cuando es por primera vez
+        try {
+            $db4DService = new Conexion4k();
+            $ean13 = null;
+            $ean14 = null;
+            if ($EAN13 != 'null') {
+                Log::alert('BUSCAR POR EL EAN13: ' . $EAN13);
+                $ean13 = $this->ean13($db4DService, $EAN13, 1);
+                $ean14 = $ean13 ? $this->ean14($db4DService, $ean13->original['PRODUCT_ID_CORP'], 1) : null;
+            } else {
+                Log::alert('BUSCAR POR EL EAN14');
+                $ean14 = $this->ean14($db4DService, $EAN14, 2);
+                $ean13 = $ean14 ? $this->ean13($db4DService, $ean14->original['Product_Id_Corp'], 2) : null;
             }
-    }
-    
 
-   
+            if (!$ean13 || !$ean14) {
+                throw new \Exception('No se encontraron datos válidos para EAN13 o EAN14');
+            }
+
+            $cabecera = [
+                'code' => $ean13->original['PRODUCT_ID'],
+                'EAN13' => ($EAN13) ? $ean13->original['CODE_PROV_O_ALT'] : $EAN13,
+                'EAN14' => $ean14->original['CodigoBarras'] ?? null,
+                'EAN128' => $EAN128 ?? 0,
+                'lote' => $EAN128 ? substr($EAN128, 26) : 0,
+                'etiqueta' => 'PROCESANDO',
+                'producto' => $ean13->original['DESCRIPTION'] ?? null,
+            ];
+
+
+            $detalleEtiqueta = [
+                'code' => $ean13->original['PRODUCT_ID'],
+                'EAN13' => ($EAN13) ? $EAN13 : '',
+                'EAN14' => $ean14->original['CodigoBarras'] ?? null,
+                'EAN128' => ($EAN128) ? $EAN128 : '',
+                'lote' => $EAN128 ? substr($EAN128, 26) : 0,
+                'producto' => $ean13->original['DESCRIPTION'] ?? null,
+            ];
+
+
+            return response()->json(['cabecera' => $cabecera, 'detalleEtiqueta' => $detalleEtiqueta], 200);
+        } catch (\Throwable $th) {
+            Log::error("Error al buscar y actualizar la base de datos: " . $th);
+            return response()->json(['error' => 'NO SE PUDO CONSEGUIR LA ETIQUETA CONSULTADA'], 500);
+        } finally {
+            if (isset($db4DService)) {
+                $db4DService->closeConnection();
+            }
+        }
+    }
+
+
+
     public function consulta(Conexion4k $db4DService, $sql)
     {
         try {
@@ -190,7 +191,7 @@ class EtiquetaController extends Controller
         }
     }
 
-   
+
 
     public function show($codigo)
     {
