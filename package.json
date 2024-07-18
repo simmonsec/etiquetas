@@ -3,8 +3,8 @@
     "type": "module",
     "scripts": {
         "set-ip": "php set-ip.php",
-        "dev": "npm run set-ip && vite",
-        "build": "npm run set-ip && tsc && vite build"
+        "dev": "npm run && vite",
+        "build": "npm run && tsc && vite build"
     },
     "devDependencies": {
         "eslint": "^8.57.0",
@@ -20,7 +20,7 @@
         "@types/ziggy-js": "^1.3.2",
         "@vitejs/plugin-react": "^4.0.3",
         "autoprefixer": "^10.4.12",
-        "axios": "^1.1.2", 
+        "axios": "^1.1.2",
         "globals": "^15.8.0",
         "laravel-vite-plugin": "^0.8.0",
         "postcss": "^8.4.18",
