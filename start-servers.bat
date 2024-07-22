@@ -6,6 +6,12 @@ for /f "tokens=17 delims= " %%A in ('ipconfig ^| findstr /R "Dirección IPv4" ^|
     set IP=%%A
 )
 
+if "%IP%"=="" (
+    for /f "tokens=15 delims= " %%A in ('ipconfig ^| findstr /R "IPv4 Address" ^| findstr /R "192\.168\."') do (
+    set IP=%%A
+)
+)
+
 :: Mostrar la IP obtenida
 echo La dirección IP es: %IP%
 
