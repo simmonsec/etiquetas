@@ -29,11 +29,11 @@ if "%IP%"=="" (
 
 :: Iniciar el servidor PHP con Laravel
 echo Iniciando el servidor PHP con Laravel en %IP%...
-start /wait php artisan serve --host %IP% --port 80
+start /B cmd /c "php artisan serve --host %IP% --port 80 > laravel_server.log 2>&1"
 
 :: Iniciar npm run dev
 echo Iniciando npm run dev...
-start /wait npm run dev
+start /B cmd /c "npm run dev > npm_dev.log 2>&1"
 
 :: Esperar a que ambos comandos terminen (esto no sucederá a menos que los procesos sean detenidos manualmente)
 pause
