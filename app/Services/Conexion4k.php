@@ -13,7 +13,7 @@ class Conexion4k
 
     public function __construct()
     {
-        $this->dsn = 'MBAPruebas'; // DSN de 4D configurado en ODBC
+        $this->dsn = env('BD_4D_HOST', 'MBAPruebas'); // DSN de 4D configurado en ODBC
         $this->user = env('DB_4D_USERNAME', '');
         $this->password = env('DB_4D_PASSWORD', '');
 
