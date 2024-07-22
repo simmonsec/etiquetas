@@ -1,6 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Directorio de trabajo
+cd /d C:\laragon\www\etiquetas\
+echo "Entramos a C:\laragon\www\etiquetas\"
+
 :: Obtener la dirección IP de la máquina
 for /f "tokens=17 delims= " %%A in ('ipconfig ^| findstr /R "Dirección IPv4" ^| findstr /R "192\.168\."') do (
     set IP=%%A
@@ -9,8 +13,8 @@ for /f "tokens=17 delims= " %%A in ('ipconfig ^| findstr /R "Dirección IPv4" ^|
 if "%IP%"=="" (
     for /f "tokens=14 delims= " %%A in ('ipconfig ^| findstr /R "IPv4 Address" ^| findstr /R "192\.168\."') do (
     set IP=%%A
-	echo "Entro a validar de otra manera la IP: %IP%"
-	)
+    echo "Entro a validar de otra manera la IP: %IP%"
+    )
 )
 
 :: Mostrar la IP obtenida
@@ -23,17 +27,13 @@ if "%IP%"=="" (
     exit /b 1
 )
 
-:: acceder a la ruta
-cd C:\laragon\www\etiquetas\
-echo "Entramos a C:\laragon\www\etiquetas\"
-
 :: Iniciar el servidor PHP con Laravel
 echo Iniciando el servidor PHP con Laravel en %IP%...
-start /B php artisan serve --host %IP% --port 80
+start /wait php artisan serve --host %IP% --port 80
 
 :: Iniciar npm run dev
 echo Iniciando npm run dev...
-start /B npm run dev
+start /wait npm run dev
 
 :: Esperar a que ambos comandos terminen (esto no sucederá a menos que los procesos sean detenidos manualmente)
 pause
