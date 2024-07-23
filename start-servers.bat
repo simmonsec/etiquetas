@@ -1,39 +1,33 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
 :: Directorio de trabajo
-cd /d C:\laragon\www\etiquetas\
-echo "Entramos a C:\laragon\www\etiquetas\"
+cd /d C:\laragon\www\go\
+echo "Entramos a C:\laragon\www\go\" >> inicio_servicios.log
 
-:: Obtener la dirección IP de la máquina
-for /f "tokens=17 delims= " %%A in ('ipconfig ^| findstr /R "Dirección IPv4" ^| findstr /R "192\.168\."') do (
-    set IP=%%A
+:: Verificar si los servidores ya están corriendo
+set "isPHPRunning=0"
+tasklist /FI "WINDOWTITLE eq php artisan serve" | find /I "php.exe" >nul 2>&1
+if %errorlevel% == 0 set "isPHPRunning=1"
+
+set "isNPMRunning=0"
+tasklist /FI "WINDOWTITLE eq npm run dev" | find /I "node.exe" >nul 2>&1
+if %errorlevel% == 0 set "isNPMRunning=1"
+
+:: Iniciar el servidor PHP con Laravel solo si no está corriendo
+if %isPHPRunning%==0 (
+    echo Iniciando el servidor PHP con Laravel... >> inicio_servicios.log
+    start /min cmd /c "php artisan serve --host 192.168.0.187 --port 80 > laravel_server.log 2>&1"
+) else (
+    echo El servidor PHP ya está en ejecución. >> inicio_servicios.log
 )
 
-if "%IP%"=="" (
-    for /f "tokens=14 delims= " %%A in ('ipconfig ^| findstr /R "IPv4 Address" ^| findstr /R "192\.168\."') do (
-    set IP=%%A
-    echo "Entro a validar de otra manera la IP: %IP%"
-    )
+:: Iniciar npm run dev solo si no está corriendo
+if %isNPMRunning%==0 (
+    echo Iniciando npm run dev... >> inicio_servicios.log
+    start /min cmd /c "npm run dev > npm_dev.log 2>&1"
+) else (
+    echo npm run dev ya está en ejecución. >> inicio_servicios.log
 )
 
-:: Mostrar la IP obtenida
-echo La direccion IP es: %IP%
-
-:: Verificar si se obtuvo la IP correctamente
-if "%IP%"=="" (
-    echo No se pudo obtener la direccion IP.
-    pause
-    exit /b 1
-)
-
-:: Iniciar el servidor PHP con Laravel
-echo Iniciando el servidor PHP con Laravel en %IP%...
-start /B cmd /c "php artisan serve --host %IP% --port 80 > laravel_server.log 2>&1"
-
-:: Iniciar npm run dev
-echo Iniciando npm run dev...
-start /B cmd /c "npm run dev > npm_dev.log 2>&1"
-
-:: Esperar a que ambos comandos terminen (esto no sucederá a menos que los procesos sean detenidos manualmente)
-pause
+endlocal
