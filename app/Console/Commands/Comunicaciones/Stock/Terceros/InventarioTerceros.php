@@ -33,17 +33,13 @@ class InventarioTerceros extends Command
     {
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
 
-        $this->getContador();                               //llamar al contado, caundo se ejecute el script
-        $cliente = $this->servicioGoogle();                 // Configurar cliente de Google
-        $clienteToken = $this->getToken($cliente, $logger); // consultar el token para la peticion de la api
-
-
-
+        $this->getContador();                                                                           //llamar al contado, caundo se ejecute el script
+        $cliente = $this->servicioGoogle();                                                             // Configurar cliente de Google
+        $clienteToken = $this->getToken($cliente, $logger);                                             // consultar el token para la peticion de la api  
         $asuntoEmailBuscar = env('EMAIL_INVENTARIOS_TERCEROS_ASUNTO_BUSCAR');
         $destinatario = $this->option('destinatario') ?? env('EMAIL_INVENTARIOS_TERCEROS_DESTINATARIO');
-        $fechaBucarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR')));
-        //CONSTRUIMOS EL FILTRO//DESTINATARIO && ASUNTO && FECHA
-        $consultaAsunto = "to:\"{$destinatario}\" subject:\"$asuntoEmailBuscar\" after:{$fechaBucarDesde}";
+        $fechaBucarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR'))); 
+        $consultaAsunto = "to:\"{$destinatario}\" subject:\"$asuntoEmailBuscar\" after:{$fechaBucarDesde}";//CONSTRUIMOS EL FILTRO//DESTINATARIO && ASUNTO && FECHA
 
         if ($this->logsIfo) {
             $logger->registrarEvento("__________________________________________________________");
@@ -66,7 +62,7 @@ class InventarioTerceros extends Command
                 $logger->registrarEvento("--------------------------------");
             }
 
-            
+
             //inicializa el servicio con el token
             $servicioGmail = new \Google\Service\Gmail($clienteToken);
 
@@ -81,10 +77,11 @@ class InventarioTerceros extends Command
 
             //VERIFICAMOS SI TENEMOS CORREOS CON ESOS FILTROS
             if (count($resultadosAsunto->getMessages()) == 0) {
-
-                $this->info("No se encontraron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
-                $logger->registrarEvento("No se encontraron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
-                return;
+                if ($this->logsIfo) {
+                    $this->info("No se encontraron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
+                    $logger->registrarEvento("No se encontraron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
+                    return;
+                }
             } else {
 
                 $this->info("Se encontraron " . count($resultadosAsunto->getMessages()) . " correos enviados a: $destinatario con el asunto [StockTerceros:] desde $fechaBucarDesde.");
@@ -195,24 +192,28 @@ class InventarioTerceros extends Command
                 }
             }
         } catch (\Exception $e) {
-            $logger->registrarEvento('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
-            $this->error('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
+            if ($this->logsIfo) {
+                $logger->registrarEvento('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
+                $this->error('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
+            }
         }
-        $this->info("\n");
 
-        $logger->registrarEvento('--------------------------------------');
-        $logger->registrarEvento('Correos encontrados: ' . $this->emailEncontrados);
-        $logger->registrarEvento('Ya han sido procesados (P & R): ' . $this->emailProcesados);
-        $logger->registrarEvento('Nuevos correos Procesados: ' . $this->emailNuevos);
-        $logger->registrarEvento('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
+        if ($this->logsIfo) {
+            $this->info("\n");
+            $logger->registrarEvento('--------------------------------------');
+            $logger->registrarEvento('Correos encontrados: ' . $this->emailEncontrados);
+            $logger->registrarEvento('Ya han sido procesados (P & R): ' . $this->emailProcesados);
+            $logger->registrarEvento('Nuevos correos Procesados: ' . $this->emailNuevos);
+            $logger->registrarEvento('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
 
-        $this->info('Correos encontrados: ' . $this->emailEncontrados);
-        $this->info('Ya han sido procesados (P & R): ' . $this->emailProcesados);
-        $this->info('Nuevos correos Procesados: ' . $this->emailNuevos);
-        $this->info('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
+            $this->info('Correos encontrados: ' . $this->emailEncontrados);
+            $this->info('Ya han sido procesados (P & R): ' . $this->emailProcesados);
+            $this->info('Nuevos correos Procesados: ' . $this->emailNuevos);
+            $this->info('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
 
-        $this->info('Proceso de correos electrónicos completado.');
-        $logger->registrarEvento("FIN: " . $this->contador);
+            $this->info('Proceso de correos electrónicos completado.');
+            $logger->registrarEvento("FIN: " . $this->contador);
+        }
     }
 
     private function encontarArchivoNombre($parte)
