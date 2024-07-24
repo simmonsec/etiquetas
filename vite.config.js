@@ -15,7 +15,7 @@ export default defineConfig({
         react(),
     ],
     server: {
-        host: process.env.IP_DESARROLLO || 'localhost', // Usa la IP fija o 'localhost' como valor predeterminado
+        host: process.env.IP_DESARROLLO || '0.0.0.0', // Usa la IP fija o 'localhost' como valor predeterminado
         port: 3000, // Puedes cambiar el puerto si lo prefieres
     },
 });

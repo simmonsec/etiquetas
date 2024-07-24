@@ -1,0 +1,27 @@
+
+> dev
+> npm run && vite
+
+Scripts available in undefined via `npm run-script`:
+  set-ip
+    php set-ip.php
+  dev
+    npm run && vite
+  build
+    npm run && tsc && vite build
+
+
+  [32m[1mVITE[22m v4.5.3[39m  [2mready in [0m[1m248[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.187:[1m3000[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh[22m[2m to show help[22m
+
+  [31m[1mLARAVEL[22m v10.48.16[39m  [2mplugin[22m [1mv0.8.1[22m
+
+  [32m➜[39m  [1mAPP_URL[22m: [36mhttp://localhost[39m
+[2m08:06:30[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m08:06:32[22m [36m[1m[vite][22m[39m server restarted.
+
+  [31m[1mLARAVEL[22m v10.48.16[39m  [2mplugin[22m [1mv0.8.1[22m
+
+  [32m➜[39m  [1mAPP_URL[22m: [36mhttp://localhost[39m

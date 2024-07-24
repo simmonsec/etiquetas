@@ -31,18 +31,30 @@ RUN apt-get update \
     curl \
     libonig-dev \
     libzip-dev \
+    unixodbc \
+    unixodbc-dev \
+    gnupg \
+    lsb-release \
     && apt-get clean
+
+# Agregar repositorio de Microsoft
+RUN curl https://packages.microsoft.com/config/debian/12/prod.list | tee /etc/apt/sources.list.d/mssql-release.list \
+    && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
+    && apt-get update
+
+# Instalar ODBC y herramientas de SQL Server
+RUN ACCEPT_EULA=Y apt-get install -y \
+    msodbcsql18 \
+    mssql-tools18 \
+    unixodbc-dev \
+    libgssapi-krb5-2
 
 # Instalar extensiones PHP
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd \
+    && docker-php-ext-configure pdo_odbc --with-pdo-odbc=unixODBC,/usr \
+    && docker-php-ext-install pdo_odbc
 
-# Instalar paquetes necesarios para ODBC y configurar extensiones PHP
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends unixodbc unixodbc-dev && \
-    docker-php-ext-configure pdo_odbc --with-pdo-odbc=unixODBC,/usr && \
-    docker-php-ext-install pdo_odbc
-    
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
