@@ -17,6 +17,20 @@ import { ScrollArea } from "@/shadcn/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/shadcn/ui/alert"
 import { Head } from '@inertiajs/react';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/shadcn/ui/alert-dialog"
+
+
+
 export default function ScanProduct() {
     //011786122290095617000000102407
     //7861222900959
@@ -60,6 +74,9 @@ export default function ScanProduct() {
     const [ean14, setEan14] = useState(null);
     const [ean128, setEan128] = useState(null);
 
+    const [isOpen, setIsOpen] = useState(false);
+
+    const continueButtonRef = useRef<HTMLButtonElement | null>(null);
 
 
     // Al iniciar, se consulta el estado actual:
@@ -88,7 +105,7 @@ export default function ScanProduct() {
         // Obtener la lista inicial de códigos escaneados cuando el componente se monta
         const sessionData = localStorage.getItem('sessionData');
         if (sessionData) {
-            // Existe una sesión activa en el localStorage 
+            // Existe una sesión activa en el localStorage
             const session = JSON.parse(sessionData);
             //console.log('Sesión activa encontrada:', session);
             setStatus(session.status); // Establecer el estado según la sesión encontrada
@@ -183,6 +200,7 @@ export default function ScanProduct() {
             // Manejar el error aquí (por ejemplo, mostrar un mensaje al usuario)
         } finally {
             setIsLoading(false);
+
         }
 
 
@@ -209,6 +227,7 @@ export default function ScanProduct() {
     // Cuando le realiza el enter al input de busqueda de etiqueta
     const accionScanner = async (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
+            setIsOpen(false);
             const scannedCode = inputRef.current?.value.trim(); // Obtener el código escaneado limpio
 
             if (scannedCode) {
@@ -255,6 +274,7 @@ export default function ScanProduct() {
                             const ean14Invalido = ean14 && sessionData.EAN14 !== ean14 ? ean14 : null;
                             const ean128Invalido = ean128 && sessionData.EAN128 !== ean128 ? ean128 : null;
 
+
                             const invalidScannedCode = {
                                 code: 'INVALIDO',
                                 EAN13: ean13Invalido,
@@ -265,6 +285,12 @@ export default function ScanProduct() {
                                 timestamp: timestamp
                             };
 
+                            setIsOpen(true);
+                            setIsLoading(true);
+                            // Verificar si inputRef.current no es null antes de deshabilitarlo
+                            if (inputRef.current) {
+                                inputRef.current.disabled = true; // Deshabilitar el input
+                            }
                             gestionesEtiqueta[timestamp] = [invalidScannedCode];
                             localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
                             // Actualizar el índice en localStorage después de guardar
@@ -291,6 +317,12 @@ export default function ScanProduct() {
                             // Actualizar el índice en localStorage después de guardar
                             updateIndex(scannedCode, validScannedCode);
                             // console.log('Etiqueta válida guardada: ', validScannedCode);
+
+                            // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                            if (inputRef.current) {
+                                inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                inputRef.current.focus(); // Enfocar el input
+                            }
                         }
                     } else {
                         // console.log("El ítem 'gestionesEtiqueta' no existe en el localStorage.");
@@ -345,8 +377,22 @@ export default function ScanProduct() {
                             });
 
                             console.log(responseNuevo.data); */
+
+                            if (inputRef.current) {
+                                inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                inputRef.current.focus(); // Enfocar el input
+                            }
                         } catch (error) {
                             console.error('Error al obtener datos nuevos: ', error);
+                            setError('Código de etiqueta no fue encontrado en la BASE DE DATOS');
+                            setDetalleAlerta("Código de etiqueta no fue encontrado en la BASE DE DATOS");
+                            setCode(''); // Limpiar el código escaneado en caso de error
+                            alertas();
+                            setIsLoading(false);
+                            if (inputRef.current) {
+                                inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                inputRef.current.focus(); // Enfocar el input
+                            }
                         }
                     }
 
@@ -362,13 +408,13 @@ export default function ScanProduct() {
                     alertas();
                     console.error(err);
                     setIsLoading(false);
+                    if (inputRef.current) {
+                        inputRef.current.disabled = false; // Habilitar el input nuevamente
+                        inputRef.current.focus(); // Enfocar el input
+                    }
                 }
 
-                // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
-                if (inputRef.current) {
-                    inputRef.current.disabled = false; // Habilitar el input nuevamente
-                    inputRef.current.focus(); // Enfocar el input
-                }
+
 
 
             } else {
@@ -378,7 +424,12 @@ export default function ScanProduct() {
                 setIsLoading(false);
                 setError('Código de etiqueta no válido');
                 setDetalleAlerta("Revise el código escaneado.");
+
                 setCode(''); // Limpiar el código escaneado en caso de error
+                if (inputRef.current) {
+                    inputRef.current.disabled = false; // Habilitar el input nuevamente
+                    inputRef.current.focus(); // Enfocar el input
+                }
             }
         }
     };
@@ -407,6 +458,7 @@ export default function ScanProduct() {
         setError('');
         localStorage.removeItem('sessionData');
         localStorage.removeItem('gestionesEtiqueta');
+        localStorage.removeItem('scannedCodesIndex');
         setIsLoading(false);
     };
 
@@ -414,7 +466,7 @@ export default function ScanProduct() {
         setIsLoading(true);
 
         if (newStatus === 'INICIAR') {
-            // generaba la nueva sesion local sotrage y la pasamos a sesion 
+            // generaba la nueva sesion local sotrage y la pasamos a sesion
             setIsLoading(false);
             //console.log('INICIAR')
         } else if (newStatus === 'FINALIZAR') {
@@ -544,8 +596,33 @@ export default function ScanProduct() {
     };
 
 
+    const continuarScanner = () => {
+        // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+        if (inputRef.current) {
+            console.log("continua");
+            inputRef.current.disabled = false; // Habilitar el input nuevamente
 
+            // Retrasar el enfoque para permitir que el AlertDialog se cierre primero
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                } // Enfocar el input
+            }, 100); // Ajusta el tiempo según sea necesario
+        }
+    };
 
+    useEffect(() => {
+        if (isOpen) {
+            // Asegúrate de que el botón esté disponible antes de intentar enfocarlo
+            const timer = setTimeout(() => {
+                if (continueButtonRef.current) {
+                    continueButtonRef.current.focus(); // Pone el foco en el botón Continue cuando se abre el diálogo
+                }
+            }, 100); // Ajusta el tiempo según sea necesario
+
+            return () => clearTimeout(timer); // Limpia el timeout si el componente se desmonta
+        }
+    }, [isOpen]);
 
     return (
         <section className="bg-gray-100">
@@ -566,7 +643,26 @@ export default function ScanProduct() {
                 </div>
 
             )}
-
+            {isOpen && (
+                <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className='lg:text-5xl text-center text-red-500'>Código Inválido</AlertDialogTitle>
+                            <AlertDialogDescription className='lg:text-xl'>
+                                El código escaneado no coincide con la plantilla inicial. Por favor, verifica la Etiqueta e inténtalo de nuevo.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogAction
+                                ref={continueButtonRef}
+                                onClick={continuarScanner}
+                            >
+                                Continue
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
 
             <div className="py-1 px-2 mx-auto max-w-screen-xl text-center lg:py-5 bg-gray-20">
                 <div className="flex justify-center items-center gap-4 mt-1">
