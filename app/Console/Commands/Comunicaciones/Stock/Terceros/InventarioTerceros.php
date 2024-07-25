@@ -24,279 +24,27 @@ class InventarioTerceros extends Command
     public $emailNuevos = 0;
 
     public $logsIfo = true;
+
+    public $fechaCorreo;
+    public $correoId;
+    public $correoFecha;
+    public $asuntoCorreo;
+    public $remitenteCorreo;
+    public $tieneAdjuntos;
+    public $cantidadAdjunto;
+    public $adjuntos;
+    public $fragmentoCorreo;
+    public $tipoArchivo;
+    public $nombreArchivo;
+    public $cantidadArchivo;
+    public $servicioGmail;
+
     public function __construct()
     {
         parent::__construct();
     }
 
-    public function handle()
-    {
-        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
-
-        $this->getContador();                                                                           //llamar al contado, caundo se ejecute el script
-        $cliente = $this->servicioGoogle();                                                             // Configurar cliente de Google
-        $clienteToken = $this->getToken($cliente, $logger);                                             // consultar el token para la peticion de la api  
-        $asuntoEmailBuscar = env('EMAIL_INVENTARIOS_TERCEROS_ASUNTO_BUSCAR');
-        $destinatario = $this->option('destinatario') ?? env('EMAIL_INVENTARIOS_TERCEROS_DESTINATARIO');
-        $fechaBucarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR'))); 
-        $consultaAsunto = "to:\"{$destinatario}\" subject:\"$asuntoEmailBuscar\" after:{$fechaBucarDesde}";//CONSTRUIMOS EL FILTRO//DESTINATARIO && ASUNTO && FECHA
-
-        if ($this->logsIfo) {
-            $logger->registrarEvento("__________________________________________________________");
-            $logger->registrarEvento("INICIO: " . $this->contador);
-            $logger->registrarEvento("NOMBRE DEL PROCESO: INVENTARIO TERCEROS");
-
-        }
-
-        try {
-
-            if ($this->logsIfo) {
-                $this->info("FECHA DE BUSQUEDA: DESDE $fechaBucarDesde");
-                $this->info("ENVIADOS A: $destinatario");
-                $this->info("ASUNTO: $asuntoEmailBuscar");
-                $this->info("--------------------------------");
-
-                $logger->registrarEvento("FECHA DE BUSQUEDA: DESDE $fechaBucarDesde");
-                $logger->registrarEvento("ENVIADOS A: $destinatario");
-                $logger->registrarEvento("ASUNTO: $asuntoEmailBuscar");
-                $logger->registrarEvento("--------------------------------");
-            }
-
-
-            //inicializa el servicio con el token
-            $servicioGmail = new \Google\Service\Gmail($clienteToken);
-
-            // Primera consulta: buscar correos por asunto
-            $resultadosAsunto = $servicioGmail->users_messages->listUsersMessages('me', [
-                'q' => $consultaAsunto,
-                'maxResults' => 100,
-            ]);
-
-            $this->emailEncontrados = count($resultadosAsunto->getMessages());
-            print_r("\n");
-
-            //VERIFICAMOS SI TENEMOS CORREOS CON ESOS FILTROS
-            if (count($resultadosAsunto->getMessages()) == 0) {
-                if ($this->logsIfo) {
-                    $this->info("No se encontraron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
-                    $logger->registrarEvento("No se encontraron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
-                    return;
-                }
-            } else {
-
-                $this->info("Se encontraron " . count($resultadosAsunto->getMessages()) . " correos enviados a: $destinatario con el asunto [StockTerceros:] desde $fechaBucarDesde.");
-
-                //Obtener los mensajes, y traerlos ordenados.
-                $mensajes = $this->ObtenerMensajesEmail($resultadosAsunto, $servicioGmail);
-
-                foreach ($mensajes as $correo) {
-
-                    //Obtener la fecha del correo
-                    $fechaCorreo = $this->ObtenerFechaEmail($correo);
-
-                    //Obtener el remitente del correo
-                    $remitente = $this->ObtenerRemitenteEmail($correo);
-
-                    // Verificar si el correo ya fue registrado como Valido o no Valido. mediante su ID
-                    if ($this->correoYaProcesado($correo->getId()) || $this->correoNoValidoYaRegistrado($correo->getId())) {
-                        //para los correos ya procesados.
-
-                        $this->info("- ID DEL CORREO: {$correo->getId()}");
-                        $this->info("- ESTADO: [ANTES PROCESADO Y REGISTRADO]");
-                        $this->info('--------------------------------------');
-                        $logger->registrarEvento('--------------------------------------');
-                        $logger->registrarEvento("OBSERVACION: ID DEL CORREO: {$correo->getId()} ya ha sido procesado. Saltando este correo.");
-
-                        $this->emailProcesados += 1;
-                    } elseif ($correo->getPayload() && $correo->getPayload()->getParts()) //verifica si el correo tiene las partes y encabezados
-                    {
-
-                        $numPartes = count($correo->getPayload()->getParts());
-                        $masArchivos = $numPartes > 1 ? $numPartes : 1;
-
-                        foreach ($correo->getPayload()->getParts() as $parte) {
-                            // Obtener el nombre y tipo MIME del archivo si existe
-                            $nombreArchivo = $parte->getFilename() ?: '';
-                            $tipoMime = $parte->getMimeType() ?: '';
-
-
-                            // Si no hay nombre de archivo y hay más de una parte, buscar en las subpartes
-                            if (!$nombreArchivo && $numPartes > 1 && $parte->getParts()) {
-                                $nombreArchivo = $this->encontarArchivoNombre($parte->getParts());
-                                $tipoMime = $this->encontarArchivotipo($parte->getParts());
-                            }
-
-
-                            // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
-                            if ($nombreArchivo && preg_match('/.*Stock\.xlsx$/', $nombreArchivo) && (strpos($tipoMime, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false || strpos($tipoMime, 'application/octet-stream') !== false)) {
-
-                                // Obtener ID del adjunto si existe
-                                $idAdjunto = $parte->getBody()->getAttachmentId();
-                                if ($idAdjunto) {
-
-
-                                    $this->guardarArchivo($idAdjunto, $servicioGmail, $correo, $nombreArchivo, $fechaCorreo, $remitente, $tipoMime, $correo->getId());
-                                }
-                            } else { //EL ARCHIVO NO CUMPLE CON EL FORMATO NI EL TIPO
-
-
-                                if ($numPartes > 1 && $nombreArchivo === "") {
-                                    continue;
-                                } else {
-                                    // Determinar el tipo de archivo usando la función
-                                    $tipoArchivo = $this->determinarTipoArchivo($tipoMime);
-                                    $this->registrarCorreoNoValido($correo->getId(), $correo->getSnippet(), $fechaCorreo);
-                                    $this->info('--------------------------------------');
-                                    $this->info('- Fecha Correo: ' . $fechaCorreo);
-                                    $this->info("- ID DEL CORREO: {$correo->getId()}");
-                                    $this->info("- REMITENTE: {$remitente}");
-                                    $this->info("- NOMBRE ARCHIVO: " . $nombreArchivo);
-                                    $this->info("- TIPO ARCHIVO: " . $tipoArchivo);
-                                    $this->info('- FRAGMENTO DEL CORREO: ' . $correo->getSnippet());
-                                    $this->info("- ESTADO: RECHAZADO");
-                                    $this->info('- Observación: EL NOMBRE Y LA EXTESION DEL ARCHIVO NO CORRESPONDE');
-                                    $this->info("- Acciones: Se realiza el envio de la notificación al remitente, que el nombre no esta bien.");
-
-                                    $logger->registrarEvento('Fecha Correo: ' . $fechaCorreo);
-                                    $logger->registrarEvento("ID DEL CORREO: {$correo->getId()}");
-                                    $logger->registrarEvento("REMITENTE: {$remitente}");
-                                    $logger->registrarEvento("NOMBRE ARCHIVO: " . $nombreArchivo);
-                                    $logger->registrarEvento("TIPO ARCHIVO: " . $tipoArchivo);
-                                    $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $correo->getSnippet());
-                                    $logger->registrarEvento("ESTADO: RECHAZADO");
-                                    $logger->registrarEvento('Observación: EL NOMBRE Y LA EXTESION DEL ARCHIVO NO CORRESPONDE');
-                                    $logger->registrarEvento("Acciones: Se realiza el envio de la notificación al remitente, que el nombre no esta bien.");
-                                    $logger->registrarEvento('--------------------------------------');
-
-                                    $remitenteTemp = 'siglotecnologico2024@gmail.com';
-                                    $this->info("- ACCION TOMADA: Se envio un correo a {$remitenteTemp} \n");
-
-                                    // Enviar el correo electrónico
-                                    try {
-                                        $this->causas[] = 'EL NOMBRE DEL ARCHIVO NO CORRESPONDE';
-                                        // Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas));
-                                    } catch (\Throwable $th) {
-                                        $logger->registrarEvento("***Fallo el envio de correo, para notificar que el formato no cumple.");
-                                        $this->info($th);
-                                        continue;
-                                    }
-                                    $this->emailNoProcesados += 1;
-                                }
-
-                            }
-                        }
-                    } else {
-                        $this->info('No se encontraron partes de mensaje o archivos adjuntos en este correo.');
-                        $logger->registrarEvento('Observación: No se encontraron partes de mensaje o archivos adjuntos en este correo.');
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            if ($this->logsIfo) {
-                $logger->registrarEvento('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
-                $this->error('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
-            }
-        }
-
-        if ($this->logsIfo) {
-            $this->info("\n");
-            $logger->registrarEvento('--------------------------------------');
-            $logger->registrarEvento('Correos encontrados: ' . $this->emailEncontrados);
-            $logger->registrarEvento('Ya han sido procesados (P & R): ' . $this->emailProcesados);
-            $logger->registrarEvento('Nuevos correos Procesados: ' . $this->emailNuevos);
-            $logger->registrarEvento('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
-
-            $this->info('Correos encontrados: ' . $this->emailEncontrados);
-            $this->info('Ya han sido procesados (P & R): ' . $this->emailProcesados);
-            $this->info('Nuevos correos Procesados: ' . $this->emailNuevos);
-            $this->info('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
-
-            $this->info('Proceso de correos electrónicos completado.');
-            $logger->registrarEvento("FIN: " . $this->contador);
-        }
-    }
-
-    private function encontarArchivoNombre($parte)
-    {
-        $nombreArchivo = '';
-        foreach ($parte as $subParte) {
-            $nombreArchivo = $subParte->getFilename() ?: '';
-        }
-        return $nombreArchivo;
-    }
-
-
-    private function encontarArchivotipo($parte)
-    {
-        $tipoMime = '';
-        foreach ($parte as $subParte) {
-            $tipoMime = $subParte->getMimeType() ?: '';
-        }
-        return $tipoMime;
-    }
-    private function ObtenerMensajesEmail($resultadosAsunto, $servicioGmail)
-    {
-
-        $mensajes = [];
-
-        //recorrer los mensajes y enviarlos a la variable mensajes
-        foreach ($resultadosAsunto->getMessages() as $mensaje) {
-            $mensajes[] = $servicioGmail->users_messages->get('me', $mensaje->getId());
-        }
-
-        // Ordenar los mensajes por ID ascendente (opcional: podrías ordenar por fecha si lo deseas)
-        usort($mensajes, function ($a, $b) {
-            return $a->getId() <=> $b->getId(); // Ordenar por ID ascendente
-        });
-
-        return $mensajes;
-    }
-    private function obtenerRemitenteEmail($correo)
-    {
-        // Inicializar la variable remitente
-        $remitente = null;
-
-        // Obtener el payload y buscar el encabezado "From" para obtener el remitente
-        if ($correo->getPayload() && $correo->getPayload()->getHeaders()) {
-            foreach ($correo->getPayload()->getHeaders() as $header) {
-                if ($header->getName() === 'From') {
-                    $remitente = $header->getValue();
-                    break;
-                }
-            }
-        }
-
-        return $remitente;
-    }
-    private function ObtenerFechaEmail($correo)
-    {
-        // Convertir internalDate a una fecha legible
-        $internalDate = $correo->getInternalDate();
-        $fechaCorreo = date('Y-m-d H:i:s', $internalDate / 1000);
-        return $fechaCorreo;
-    }
-    private function getContador() //Manejo del contador de log
-    {
-        // Ruta del archivo JSON para almacenar el contador
-        $rutaJson = storage_path('InventarioTerceros/contador.json');
-        // Inicializar el contador desde el archivo JSON
-        if (file_exists($rutaJson)) {
-            $contenidoJson = file_get_contents($rutaJson);
-            $datosJson = json_decode($contenidoJson, true);
-            if (isset($datosJson['contador'])) {
-                $this->contador = (int) $datosJson['contador'];
-            }
-        }
-
-        // Incrementar el contador
-        $this->contador++;
-
-        // Guardar el nuevo valor del contador en el archivo JSON
-        $datosJson = ['contador' => $this->contador];
-        file_put_contents($rutaJson, json_encode($datosJson));
-    }
-
-    private function servicioGoogle() //Conexion a la api de google
+    private function getServicioGoogle() //Conexion a la api de google
     {
         // Configurar cliente de Google
         $cliente = new \Google\Client();
@@ -309,7 +57,7 @@ class InventarioTerceros extends Command
         return $cliente;
     }
 
-    private function getToken($cliente, $logger) //Genera el token
+    private function getServicioeGmail($cliente, $logger) //Genera el token
     {
         $rutaToken = storage_path('InventarioTerceros/json/token.json');
 
@@ -360,9 +108,490 @@ class InventarioTerceros extends Command
             $logger->registrarEvento('Error en la configuración del cliente de Google: ' . $e->getMessage());
             throw $e;
         }
+        $servicioGmail = null;
+        if ($cliente) {
+            $servicioGmail = new \Google\Service\Gmail($cliente);
+        }
 
-        return $cliente;
+        return $servicioGmail;
     }
+
+    private function getCorreos($servicioGmail, $logger)
+    {
+        $correos = null;
+        $destinatario = $this->option('destinatario') ?? env('EMAIL_INVENTARIOS_TERCEROS_DESTINATARIO');
+        $asuntoEmailBuscar = env('EMAIL_INVENTARIOS_TERCEROS_ASUNTO_BUSCAR');
+        $fechaBucarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR')));
+        $consultaAsunto = "to:\"{$destinatario}\" subject:\"$asuntoEmailBuscar\" after:{$fechaBucarDesde}";//CONSTRUIMOS EL FILTRO//DESTINATARIO && ASUNTO && FECHA
+
+        //1: buscar correos por asunto
+        $correos = $servicioGmail->users_messages->listUsersMessages('me', [
+            'q' => $consultaAsunto,
+            'maxResults' => 100,
+        ]);
+
+        //Almacenar la cantidad de correos encontrados
+        $this->emailEncontrados = count($correos->getMessages());
+
+        if ($this->emailEncontrados > 0) {
+            $this->info("Se indentificaron " . $this->emailEncontrados . " correos enviados a: $destinatario con el asunto [StockTerceros:] desde $fechaBucarDesde.");
+        } else {
+            $logger->registrarEvento("No se indentificaron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
+            $this->info("No se indentificaron correos enviados a: $destinatario con el asunto $asuntoEmailBuscar desde $fechaBucarDesde.");
+        }
+
+        return $correos;
+    }
+
+    private function ObtenerMensajesEmail($resultadosAsunto)
+    {
+
+        $mensajes = [];
+        $servicioGmail = $this->servicioGmail;
+        //recorrer los mensajes y enviarlos a la variable mensajes
+        foreach ($resultadosAsunto->getMessages() as $mensaje) {
+            $mensajes[] = $servicioGmail->users_messages->get('me', $mensaje->getId());
+        }
+
+        // Ordenar los mensajes por ID ascendente (opcional: podrías ordenar por fecha si lo deseas)
+        usort($mensajes, function ($a, $b) {
+            return $a->getId() <=> $b->getId(); // Ordenar por ID ascendente
+        });
+
+        return $mensajes;
+    }
+
+    private function verificarAdjunto($correo, $servicioGmail)
+    {
+        $correoId = $correo->getId();
+        $payload = $correo->getPayload();
+        $partes = $payload->getParts();
+        $remitente = null;
+        $tieneAdjuntos = false;
+        $cantidadAdjunto = 0;
+        $adjuntos = [];
+        $fragmentoCorreo = $correo->getSnippet();
+
+        // Obtener el payload y buscar el encabezado "From" para obtener el remitente
+        if ($correo->getPayload() && $correo->getPayload()->getHeaders()) {
+            foreach ($correo->getPayload()->getHeaders() as $header) {
+                if ($header->getName() === 'From') {
+                    $remitente = $header->getValue();
+                    break;
+                }
+            }
+        }
+
+        // Convertir internalDate a una fecha legible
+        $internalDate = $correo->getInternalDate();
+        $fechaCorreo = date('Y-m-d H:i:s', $internalDate / 1000);
+
+        // Llamada al método recursivo
+        $this->verificarPartes($partes, $tieneAdjuntos, $cantidadAdjunto, $adjuntos, $servicioGmail, $correoId);
+
+        if ($cantidadAdjunto > 0) {
+            foreach ($adjuntos as $adjunto) {
+                $this->tipoArchivo = $adjunto['mimeType'];
+                $this->nombreArchivo = $adjunto['filename'];
+            }
+        }
+
+        $this->correoFecha = $fechaCorreo;
+        $this->remitenteCorreo = $remitente;
+        $this->correoId = $correoId;
+        $this->asuntoCorreo = $payload->getHeaders()[0]->getValue(); // Ajustar si necesario
+        $this->tieneAdjuntos = $tieneAdjuntos;
+        $this->cantidadArchivo = $cantidadAdjunto;
+        $this->adjuntos = $adjuntos;
+        $this->fragmentoCorreo = $fragmentoCorreo;
+
+        return [
+            'correoId' => $correoId,
+            'correoFecha' => $fechaCorreo,
+            'asuntoCorreo' => $payload->getHeaders()[0]->getValue(), // Ajustar si necesario
+            'remitenteCorreo' => $remitente, // Ajustar si necesario
+            'tieneAdjuntos' => $tieneAdjuntos,
+            'cantidadAdjunto' => $cantidadAdjunto,
+            'adjuntos' => $adjuntos,
+            'fragmentoCorreo' => $fragmentoCorreo
+        ];
+    }
+
+    private function correoYaProcesado($idCorreo)
+    {
+        $archivoRegistro = storage_path('InventarioTerceros/json/correos_procesados.json');
+
+        if (file_exists($archivoRegistro)) {
+            $correosProcesados = json_decode(file_get_contents($archivoRegistro), true);
+
+            foreach ($correosProcesados as $correo) {
+                if ($correo['id'] === $idCorreo) {
+                    // print_r("ID REGISTRADO PROCESADO: ".$correo['id']."\n");
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+    private function correoNoValidoYaRegistrado($idCorreo)
+    {
+        $rutaJson = storage_path('InventarioTerceros/json/correos_no_validos.json');
+
+        if (file_exists($rutaJson)) {
+            $correosNoValidos = json_decode(file_get_contents($rutaJson), true);
+
+            foreach ($correosNoValidos as $correo) {
+                if ($correo['id'] === $idCorreo) {
+                    //print_r("ID REGISTRADO: ".$correo['id']."\n");
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public function handle()
+    {
+        $this->getContador();
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
+
+        $cliente = $this->getServicioGoogle();
+        $this->servicioGmail = $this->getServicioeGmail($cliente, $logger);
+
+
+        try {
+            $this->registroEventos('INICIO', $logger);
+
+            // Primera consulta: buscar correos por asunto
+            $correos = $this->getCorreos($this->servicioGmail, $logger);
+
+            if ($this->emailEncontrados > 0) {
+
+                //Obtener los mensajes, y traerlos ordenados.
+                $mensajes = $this->ObtenerMensajesEmail($correos);
+
+                foreach ($mensajes as $correo) {
+
+                    $datosCorreo = $this->verificarAdjunto($correo, $this->servicioGmail);
+                    $this->tipoArchivo;
+                    $this->nombreArchivo;
+                    print_r("NOMBRE ARCHIVO: ".$this->nombreArchivo."\n");
+                    print_r("TIPO ARCHIVO: ".$this->tipoArchivo."\n");
+                    if ($this->correoYaProcesado($this->correoId) || $this->correoNoValidoYaRegistrado($this->correoId)) {  //  INDENTIFICAR SI YA FUE ANTES BARRIDO MEDIANTE EL ID
+
+                        $this->registroEventos('REGISTRADO', $logger);
+                        $this->emailProcesados += 1;
+
+                    } elseif ($correo->getPayload() && $correo->getPayload()->getParts()) //verifica si el correo tiene las partes y encabezados
+                    {
+
+                        $numPartes = count($correo->getPayload()->getParts());
+
+                        foreach ($correo->getPayload()->getParts() as $parte) {
+                             
+                            // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
+                            if ($this->nombreArchivo && preg_match('/.*Stock\.xlsx$/', $this->nombreArchivo) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false)) {
+
+                                // Obtener ID del adjunto si existe
+                                $idAdjunto = $parte->getBody()->getAttachmentId();
+                                if ($idAdjunto) {
+
+                                    $this->guardarArchivo($idAdjunto, $this->servicioGmail, $correo, $this->nombreArchivo, $this->correoFecha, $this->remitenteCorreo, $this->tipoArchivo, $this->correoId);
+                                }
+                            } else { //EL ARCHIVO NO CUMPLE CON EL FORMATO NI EL TIPO
+
+
+                                if ($numPartes > 1 && $this->nombreArchivo === "") {
+                                    continue;
+                                } else {
+                                    // Determinar el tipo de archivo usando la función
+                                    $tipoArchivo = $this->determinarTipoArchivo($this->tipoArchivo);
+                                    $this->registrarCorreoNoValido($this->correoId, $correo->getSnippet(), $this->correoFecha);
+                                    $this->registroEventos("RECHAZADO", $logger); 
+
+                                    // Enviar el correo electrónico
+                                    try {
+                                        if ($this->tipoArchivo !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+                                            $this->causas[] = 'EL TIPO DE ARCHIVO NO SOPORTADO: ' . $this->tipoArchivo;
+                                        } else {
+                                            $this->causas[] = 'El Nombre del archivo no es Valido.';
+                                        }
+                                        $remitenteTemp = 'siglotecnologico2024@gmail.com';
+                                        Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($this->correoId, $this->nombreArchivo, $this->remitenteCorreo, $this->causas, 'RECHAZADO'));
+                                    } catch (\Throwable $th) {
+                                        $logger->registrarEvento("***Fallo el envio de correo, para notificar que el formato no cumple.");
+                                        $this->info($th);
+                                        continue;
+                                    }
+                                    $this->emailNoProcesados += 1;
+                                }
+
+                            }
+                        }
+                    } else {
+                        $this->info('No se encontraron partes de mensaje o archivos adjuntos en este correo.');
+                        $logger->registrarEvento('Observación: No se encontraron partes de mensaje o archivos adjuntos en este correo.');
+                    }
+                }
+
+            }
+        } catch (\Exception $e) {
+            $logger->registrarEvento('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
+            $this->error('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
+
+        }
+
+        $this->registroEventos('FIN', $logger);
+
+
+    }
+
+
+
+    private function verificarPartes($partes, &$tieneAdjuntos, &$cantidadAdjunto, &$adjuntos, $servicioGmail, $correoId)
+    {
+        foreach ($partes as $parte) {
+            if ($parte->getFilename()) {
+                $tieneAdjuntos = true;
+                $cantidadAdjunto++;
+                $filename = $parte->getFilename();
+                $mimeType = $parte->getMimeType();
+                $body = $parte->getBody();
+                $attachmentId = $body->getAttachmentId();
+
+                if ($attachmentId) {
+                    $adjunto = $servicioGmail->users_messages_attachments->get('me', $correoId, $attachmentId);
+                    $data = $adjunto->getData();
+                    $data = strtr($data, array('-' => '+', '_' => '/'));
+                    $fileData = base64_decode($data);
+
+                    $adjuntos[] = [
+                        'filename' => $filename,
+                        'mimeType' => $mimeType,
+                        'data' => $fileData
+                    ];
+                } else {
+                    // Manejar casos donde el adjunto no tiene un attachmentId
+                    $data = $body->getData();
+                    if ($data) {
+                        $data = strtr($data, array('-' => '+', '_' => '/'));
+                        $fileData = base64_decode($data);
+
+                        $adjuntos[] = [
+                            'filename' => $filename,
+                            'mimeType' => $mimeType,
+                            'data' => $fileData
+                        ];
+                    }
+                }
+            }
+
+            // Verificar partes anidadas
+            $subPartes = $parte->getParts();
+            if ($subPartes) {
+                $this->verificarPartes($subPartes, $tieneAdjuntos, $cantidadAdjunto, $adjuntos, $servicioGmail, $correoId);
+            }
+        }
+    }
+
+
+    private function registroEventos($evento, $logger)
+    {
+        // Configuración de parámetros comunes
+        $asuntoEmailBuscar = env('EMAIL_INVENTARIOS_TERCEROS_ASUNTO_BUSCAR');
+        $destinatario = $this->option('destinatario') ?? env('EMAIL_INVENTARIOS_TERCEROS_DESTINATARIO');
+        $fechaBuscarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR')));
+    
+        // Evento INICIO
+        if ($evento == 'INICIO') {
+            $logger->registrarEvento("INICIO: " . $this->contador);
+            $logger->registrarEvento("NOMBRE DEL PROCESO: INVENTARIO TERCEROS");
+            $this->info("FECHA DE BUSQUEDA: DESDE $fechaBuscarDesde");
+            $this->info("ENVIADOS A: $destinatario");
+            $this->info("ASUNTO: $asuntoEmailBuscar");
+            $this->info("----------------------------------------------------------");
+            $logger->registrarEvento("FECHA DE BUSQUEDA: DESDE $fechaBuscarDesde");
+            $logger->registrarEvento("ENVIADOS A: $destinatario");
+            $logger->registrarEvento("ASUNTO: $asuntoEmailBuscar");
+            $logger->registrarEvento("----------------------------------------------------------");
+        }
+    
+        // Evento REGISTRADO
+        if ($evento == 'REGISTRADO') {
+            $this->info("- ID DEL CORREO: {$this->correoId}");
+            $this->info("- ESTADO: [ANTES PROCESADO Y REGISTRADO]");
+            $this->info("----------------------------------------------------------");
+            $logger->registrarEvento("CORREO ID: {$this->correoId} YA FUE VERIFICADO");
+            $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
+            $logger->registrarEvento("----------------------------------------------------------");
+        }
+    
+        // Evento RECHAZADO
+        if ($evento == 'RECHAZADO') {
+            $this->info("----------------------------------------------------------");
+            $this->info('- Fecha Correo: ' . $this->correoFecha);
+            $this->info("- ID DEL CORREO: {$this->correoId}");
+            $this->info("- REMITENTE: {$this->remitenteCorreo}");
+            $this->info("- NOMBRE ARCHIVO: " . $this->nombreArchivo);
+            $this->info("- TIPO ARCHIVO: " . $this->tipoArchivo);
+            $this->info('- FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
+            $this->info("- ESTADO: RECHAZADO");
+            $this->info('- Observación: EL NOMBRE Y LA EXTENSIÓN DEL ARCHIVO NO CORRESPONDE');
+            $this->info("- Acciones: Se realiza el envío de la notificación al remitente.");
+            $this->info("- ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
+            $this->info("----------------------------------------------------------");
+    
+            $logger->registrarEvento('Fecha Correo: ' . $this->correoFecha);
+            $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
+            $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
+            $logger->registrarEvento("NOMBRE ARCHIVO: " . $this->nombreArchivo);
+            $logger->registrarEvento("TIPO ARCHIVO: " . $this->tipoArchivo);
+            $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
+            $logger->registrarEvento("ESTADO: RECHAZADO");
+            $logger->registrarEvento('Observación: EL NOMBRE Y LA EXTENSIÓN DEL ARCHIVO NO CORRESPONDE');
+            $logger->registrarEvento("Acciones: Se realiza el envío de la notificación al remitente.");
+            $logger->registrarEvento("----------------------------------------------------------");
+        }
+    
+        // Evento PROCESADO
+        if ($evento == 'PROCESADO') {
+            $this->info("----------------------------------------------------------");
+            $this->info('Fecha Correo: ' . $this->correoFecha);
+            $this->info("Id Correo: {$this->correoId}");
+            $this->info("Remitente: {$this->remitenteCorreo}");
+            $this->info("Nombre Archivo: " . $this->nombreArchivo);
+            $this->info('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
+            $this->info("Estado: PROCESADO");
+            $this->info("Observación: Se descargó el archivo");
+            $this->info("Archivo Guardado: " . env('RUTA_CARPETA_INV_TERCEROS'));
+            $this->info("- ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
+            $this->info("----------------------------------------------------------");
+    
+            $logger->registrarEvento("FECHA CORREO: " . $this->correoFecha);
+            $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
+            $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
+            $logger->registrarEvento("NOMBRE ARCHIVO: " . $this->nombreArchivo);
+            $logger->registrarEvento("TIPO ARCHIVO: " . $this->tipoArchivo);
+            $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
+            $logger->registrarEvento("ESTADO: PROCESADO");
+            $logger->registrarEvento("Observación: Se descargó el archivo");
+            $logger->registrarEvento("Archivo Guardado: " . env('RUTA_CARPETA_INV_TERCEROS'));
+            $logger->registrarEvento("ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
+            $logger->registrarEvento("----------------------------------------------------------");
+        }
+    
+        // Evento NOFORMATO
+        if ($evento == 'NOFORMATO') {
+            $this->info("----------------------------------------------------------");
+            $this->info('- Fecha Correo: ' . $this->correoFecha);
+            $this->info("- ID DEL CORREO: {$this->correoId}");
+            $this->info("- REMITENTE: {$this->remitenteCorreo}");
+            $this->info("- NOMBRE ARCHIVO: " . $this->nombreArchivo);
+            $this->info("- TIPO ARCHIVO: " . $this->tipoArchivo);
+            $this->info('- FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
+            $this->info("- ESTADO: RECHAZADO");
+            $this->info("- OBSERVACIÓN: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
+            $this->info("Acciones: Se realiza el envío de la notificación al remitente.");
+    
+            $logger->registrarEvento('FECHA CORREO: ' . $this->correoFecha);
+            $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
+            $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
+            $logger->registrarEvento("NOMBRE ARCHIVO: " . $this->nombreArchivo);
+            $logger->registrarEvento("TIPO ARCHIVO: " . $this->tipoArchivo);
+            $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
+            $logger->registrarEvento("ESTADO: RECHAZADO");
+            $logger->registrarEvento("OBSERVACIÓN: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
+            $logger->registrarEvento("ACCIONES: Se realiza el envío de la notificación al remitente.");
+            $logger->registrarEvento("----------------------------------------------------------");
+        }
+    
+        // Evento FIN
+        if ($evento == 'FIN') {
+            $this->info('Correos encontrados: ' . $this->emailEncontrados);
+            $this->info('Ya han sido procesados (P & R): ' . $this->emailProcesados);
+            $this->info('Nuevos correos Procesados: ' . $this->emailNuevos);
+            $this->info('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
+            $this->info('Proceso de correos electrónicos completado.');
+    
+            $logger->registrarEvento('Correos encontrados: ' . $this->emailEncontrados);
+            $logger->registrarEvento('Ya han sido procesados (P & R): ' . $this->emailProcesados);
+            $logger->registrarEvento('Nuevos correos Procesados: ' . $this->emailNuevos);
+            $logger->registrarEvento('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
+            $logger->registrarEvento("FIN: " . $this->contador);
+            $logger->registrarEvento("__________________________________________________________");
+        }
+    }
+    
+
+    private function encontarArchivoNombre($parte)
+    {
+        $nombreArchivo = '';
+        foreach ($parte as $subParte) {
+            $nombreArchivo = $subParte->getFilename() ?: '';
+        }
+        return $nombreArchivo;
+    }
+
+
+    private function encontarArchivotipo($parte)
+    {
+        $tipoMime = '';
+        foreach ($parte as $subParte) {
+            $tipoMime = $subParte->getMimeType() ?: '';
+        }
+        return $tipoMime;
+    }
+
+    private function obtenerRemitenteEmail($correo)
+    {
+        // Inicializar la variable remitente
+        $remitente = null;
+
+        // Obtener el payload y buscar el encabezado "From" para obtener el remitente
+        if ($correo->getPayload() && $correo->getPayload()->getHeaders()) {
+            foreach ($correo->getPayload()->getHeaders() as $header) {
+                if ($header->getName() === 'From') {
+                    $remitente = $header->getValue();
+                    break;
+                }
+            }
+        }
+
+        return $remitente;
+    }
+    private function ObtenerFechaEmail($correo)
+    {
+        // Convertir internalDate a una fecha legible
+        $internalDate = $correo->getInternalDate();
+        $fechaCorreo = date('Y-m-d H:i:s', $internalDate / 1000);
+        return $fechaCorreo;
+    }
+    private function getContador() //Manejo del contador de log
+    {
+        // Ruta del archivo JSON para almacenar el contador
+        $rutaJson = storage_path('InventarioTerceros/contador.json');
+        // Inicializar el contador desde el archivo JSON
+        if (file_exists($rutaJson)) {
+            $contenidoJson = file_get_contents($rutaJson);
+            $datosJson = json_decode($contenidoJson, true);
+            if (isset($datosJson['contador'])) {
+                $this->contador = (int) $datosJson['contador'];
+            }
+        }
+
+        // Incrementar el contador
+        $this->contador++;
+
+        // Guardar el nuevo valor del contador en el archivo JSON
+        $datosJson = ['contador' => $this->contador];
+        file_put_contents($rutaJson, json_encode($datosJson));
+    }
+
+
+
+
 
     /**
      * Genera un nombre de archivo en PascalCase si contiene espacios.
@@ -387,23 +616,6 @@ class InventarioTerceros extends Command
         }
     }
 
-    /**
-     * Verifica si un correo ya ha sido procesado previamente.
-     *
-     * @param string $idCorreo ID del correo a verificar.
-     * @return bool True si el correo ha sido procesado, False si no.
-     */
-    private function correoYaProcesado($idCorreo)
-    {
-        $archivoRegistro = storage_path('InventarioTerceros/json/correos_procesados.json');
-        $registros = [];
-
-        if (file_exists($archivoRegistro)) {
-            $registros = json_decode(file_get_contents($archivoRegistro), true);
-        }
-
-        return in_array($idCorreo, $registros);
-    }
 
     /**
      * Registra un correo como procesado para evitar duplicados.
@@ -465,28 +677,7 @@ class InventarioTerceros extends Command
         }
     }
 
-    /**
-     * Verifica si un correo no válido ya ha sido registrado anteriormente.
-     *
-     * @param string $idCorreo ID del correo a verificar.
-     * @return bool True si el correo no válido ya ha sido registrado, False si no.
-     */
-    private function correoNoValidoYaRegistrado($idCorreo)
-    {
-        $rutaJson = storage_path('InventarioTerceros/json/correos_no_validos.json');
 
-        if (file_exists($rutaJson)) {
-            $correosNoValidos = json_decode(file_get_contents($rutaJson), true);
-
-            foreach ($correosNoValidos as $correo) {
-                if ($correo['id'] === $idCorreo) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
 
     // Función para validar el archivo adjunto
     private function validarArchivoAdjunto($datosAdjunto, $nombreArchivo, $correoId)
@@ -511,15 +702,13 @@ class InventarioTerceros extends Command
 
                 if (empty($errores)) {
                     $archivoValido = true; // El archivo es válido
-                    print_r("SIN ERRORES");
+
                 } else {
                     $this->causas = $errores; // Guardar los errores encontrados
                     print_r("ESTOS SON LOS ERRORES: " . implode(', ', $errores));
                     $logger->registrarEvento('El archivo adjunto no cumple con los requisitos.');
                 }
             } catch (\Exception $e) {
-                $logger->registrarEvento("Correo Id: " . $correoId);
-                $logger->registrarEvento("Nombre Adjunto: " . $nombreArchivo);
                 $logger->registrarEvento("Error al obtener o validar el archivo adjunto: " . $e->getMessage());
             }
         } else {
@@ -658,7 +847,7 @@ class InventarioTerceros extends Command
             $guardadoStorage = file_put_contents($rutaLocalStorage, base64_decode(strtr($datosAdjunto, '-_', '+/')));
 
             // Guardar el archivo en una ruta específica
-            $rutaLocal = "C:\\Users\\GOsorio\\Documents\\{$nombreNuevo}";
+            $rutaLocal = env('RUTA_CARPETA_INV_TERCEROS') . $nombreNuevo;
             $guardado = file_put_contents($rutaLocal, base64_decode(strtr($datosAdjunto, '-_', '+/')));
 
             if ($guardado !== false && $guardadoStorage !== false) {
@@ -666,31 +855,13 @@ class InventarioTerceros extends Command
 
                 $this->registrarCorreoProcesado($correo->getId(), $correo->getSnippet(), $fechaCorreo);
 
-
-                $this->info('--------------------------------------');
-                $this->info('Fecha Correo: ' . $fechaCorreo);
-                $this->info("Id Correo: {$correo->getId()}");
-                $this->info("Remitente: {$remitente}");
-                $this->info("Nombre Archivo: " . $nombreArchivo);
-                $this->info("Estado: PROCESADO");
-                $this->info("Observación: Se descargo el archivo");
-                $this->info("Archivo Guardado: {$rutaLocal} "); //y {$rutaLocalStorage}
-                $this->info('--------------------------------------');
-                $logger->registrarEvento('--------------------------------------');
-                $logger->registrarEvento('Fecha Correo: ' . $fechaCorreo);
-                $logger->registrarEvento("Id Correo: {$correo->getId()}");
-                $logger->registrarEvento("Remitente: {$remitente}");
-                $logger->registrarEvento("Estado: PROCESADO");
-                $logger->registrarEvento("Observación: Se descargo el archivo");
-                $logger->registrarEvento("Archivo Guardado: {$rutaLocal} "); //y {$rutaLocalStorage}
-
-                $remitenteTemp = 'siglotecnologico2024@gmail.com';
-                $this->info("- ACCION TOMADA: Se envio un correo a {$remitenteTemp} \n");
+                $this->registroEventos("PROCESADO",$logger); 
 
                 // Enviar el correo electrónico, porque ya se proceso con exito
                 try {
-                    //$this->causas= "PROCESADO";
-                    //Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas));
+                    $remitenteTemp = 'siglotecnologico2024@gmail.com';
+                    $this->causas = [];
+                    Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'PROCESADO'));
                 } catch (\Throwable $th) {
                     $logger->registrarEvento("***Fallo el envio de correo, para notificar que EL PROCESO FUE COMPLETADO.");
                     $this->info($th);
@@ -709,29 +880,8 @@ class InventarioTerceros extends Command
             if (!$this->correoNoValidoYaRegistrado($correo->getId())) { //verifica si ya fue procesasdo como rechazado
                 $this->registrarCorreoNoValido($correo->getId(), $correo->getSnippet(), $fechaCorreo); //registrar en el json para no volver a procesar
 
-
-                $this->info('--------------------------------------');
-                $this->info('- Fecha Correo: ' . $fechaCorreo);
-                $this->info("- ID DEL CORREO: {$correo->getId()}");
-                $this->info("- REMITENTE: {$remitente}");
-                $this->info("- NOMBRE ARCHIVO: " . $nombreArchivo);
-                $this->info("- TIPO ARCHIVO: " . $tipoMime);
-                $this->info('- FRAGMENTO DEL CORREO: ' . $correo->getSnippet());
-                $this->info("- ESTADO: RECHAZADO");
-                $this->info("- OBSERVACION: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
-                $this->info("Acciones: Se realiza el envio de la notificación al remitente.");
-
-
-
-
-                $logger->registrarEvento('--------------------------------------');
-                $logger->registrarEvento('Fecha Correo: ' . $fechaCorreo);
-                $logger->registrarEvento("Id Correo: {$correo->getId()}");
-                $logger->registrarEvento("Remitente: {$remitente}");
-                $logger->registrarEvento("Estado: RECHAZADO");
-                $logger->registrarEvento("Observacion: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
-                $logger->registrarEvento("Acciones: Se realiza el envio de la notificación al remitente, que el archivo no esta bien dentro");
-
+                $this->registroEventos("NOFORMATO",$logger);
+                
                 $this->causas[] = "El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.";
 
                 if (!empty($this->causas)) {
@@ -743,13 +893,13 @@ class InventarioTerceros extends Command
                     }
                 }
 
-
+              
                 $remitenteTemp = 'siglotecnologico2024@gmail.com';
                 $this->info("- ACCION TOMADA: Se envio un correo a {$remitenteTemp} \n");
 
                 // Enviar el correo electrónico
                 try {
-                    //Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas));
+                    Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'RECHAZADO'));
                 } catch (\Throwable $th) {
                     $logger->registrarEvento("***Fallo el envio de correo, para notificar que el formato no cumple.");
                     $this->info($th);
