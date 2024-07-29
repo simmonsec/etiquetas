@@ -21,3 +21,10 @@ Homestead.yaml
 Homestead.json
 /.vagrant
 .phpunit.result.cache
+
+package.json
+package-lock.json
+
+laravel_server.log
+inicio_servicios.log
+npm_dev.log
