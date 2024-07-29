@@ -147,7 +147,7 @@
             </div>
             <div class="details">
                 <p><i>
-                        <center>Este correo electrónico fue enviado automáticamente desde nuestra aplicación.</center>
+                        <center>Este es un mensaje generado automáticamente por nuestro sistema</center>
                     </i></p>
             </div>
         </div>
