@@ -13,7 +13,7 @@ class Kernel extends ConsoleKernel
      * @var array 
      */
     protected $commands = [ 
-        'App\Console\Commands\Comunicaciones\InventarioTerceros'
+        'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros'
     ];
 
     /**

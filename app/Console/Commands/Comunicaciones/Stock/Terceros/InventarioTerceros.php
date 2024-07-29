@@ -652,7 +652,7 @@ class InventarioTerceros extends Command
             $rutaLocalStorage = storage_path("InventarioTerceros/archivos/{$nombreNuevo}");
             $guardadoStorage = file_put_contents($rutaLocalStorage, base64_decode(strtr($datosAdjunto, '-_', '+/')));
             // Guardar el archivo en una ruta específica
-            $rutaLocal = env('RUTA_CARPETA_INV_TERCEROS') . $nombreNuevo;
+            $rutaLocal = env('RUTA_CARPETA_INV_TERCEROS')."/". $nombreNuevo;
             $guardado = file_put_contents($rutaLocal, base64_decode(strtr($datosAdjunto, '-_', '+/')));
             if ($guardado !== false && $guardadoStorage !== false) {
                 $this->registrarCorreoProcesado($correo->getId(), $correo->getSnippet(), $fechaCorreo);
