@@ -127,7 +127,8 @@
                         <div class="excel-header">Recomendaciones para el formato del archivo adjunto:</div>
                         <div class="excel-row">1. El archivo debe ser tipo Excel con el nombre
                             <b>[NombreProveedor]Stock.xlsx</b>. Sustituir <b>[NombreProveedor]</b> por el nombre del
-                            proveedor.</div>
+                            proveedor.
+                        </div>
                         <div class="excel-row">2. En la celda E1, incluir la fecha y hora de corte de las existencias.
                         </div>
                         <div class="excel-row">3. A partir de la fila <b>5</b> y la columna <b>A</b>, incluir el listado
@@ -146,9 +147,11 @@
                 @endif
             </div>
             <div class="details">
-                <p><i>
+                <p>
+                    <i>
                         <center>Este es un mensaje generado automáticamente por nuestro sistema</center>
-                    </i></p>
+                    </i>
+                </p>
             </div>
         </div>
 
