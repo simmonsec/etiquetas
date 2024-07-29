@@ -42,7 +42,7 @@ class RespuestaInventarioTerceros extends Mailable
         $remitente= $this->remitente;
         $causas= $this->causas;
         $estado = $this->estado;
-        print_r($estado."\n" );
+        
      
         
         return $this->subject('Respuesta Automatica | Simmons Ecuador')

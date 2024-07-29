@@ -201,7 +201,7 @@ class InventarioTerceros extends Command
                 $this->nombreArchivo = $adjunto['filename'];
             }
         } 
-        
+    
         $this->correoFecha = $fechaCorreo;
         $this->remitenteCorreo = $remitente;
         $this->correoId = $correoId; 
@@ -259,6 +259,7 @@ class InventarioTerceros extends Command
             if ($this->emailEncontrados > 0) {
                 //Obtener los mensajes, y traerlos ordenados.
                 $mensajes = $this->ObtenerMensajesEmail($correos);
+               
                 foreach ($mensajes as $correo) {
                     $this->verificarAdjunto($correo, $this->servicioGmail);
                     
@@ -274,7 +275,9 @@ class InventarioTerceros extends Command
                         $numPartes = count($correo->getPayload()->getParts());
                         //foreach ($correo->getPayload()->getParts() as $parte) {
                             // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
+                            
                             if ($this->nombreArchivo && preg_match('/.*Stock\.xlsx$/', $this->nombreArchivo) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false || $this->tipoArchivo === 'application/octet-stream')) {   
+
                                 if ( $this->adjuntos) {
                                     $this->guardarArchivo( $this->adjuntos, $this->servicioGmail, $correo, $this->nombreArchivo, $this->correoFecha, $this->remitenteCorreo, $this->tipoArchivo, $this->correoId);
                                 }
@@ -282,6 +285,7 @@ class InventarioTerceros extends Command
                                 if ($numPartes > 1 && $this->nombreArchivo === "") {
                                     continue;
                                 } else {
+                                    
                                     $this->registrarCorreoNoValido($this->correoId, $correo->getSnippet(), $this->correoFecha);
                                     $this->registroEventos("RECHAZADO", $logger);
                                     // Enviar el correo electrónico
@@ -321,7 +325,9 @@ class InventarioTerceros extends Command
             if ($parte->getFilename()) {
                 $tieneAdjuntos = true;
                 $cantidadAdjunto++;
-                $filename = $parte->getFilename();
+                //$filename = $parte->getFilename();
+                  // Obtener y limpiar el nombre del archivo
+            $filename = str_replace(' ', '', $parte->getFilename()); 
                 $mimeType = $parte->getMimeType();
                 $body = $parte->getBody();
                 $attachmentId = $body->getAttachmentId();
@@ -362,15 +368,15 @@ class InventarioTerceros extends Command
     }
     private function registroEventos($evento, $logger)
     {
-        if($this->nombreArchivo === null) {
-            $this->nombreArchivo = "SIN ARCHIVO";
-            $this->tipoArchivo = "SIN ARCHIVO";
-        }
+        // Inicializar $nombreArchivo y $tipoArchivo
+        $nombreArchivo = $this->nombreArchivo ?? "SIN ARCHIVO";
+        $tipoArchivo = $this->tipoArchivo ?? "SIN ARCHIVO";
+    
         // Configuración de parámetros comunes
         $asuntoEmailBuscar = env('EMAIL_INVENTARIOS_TERCEROS_ASUNTO_BUSCAR');
         $destinatario = $this->option('destinatario') ?? env('EMAIL_INVENTARIOS_TERCEROS_DESTINATARIO');
         $fechaBuscarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR')));
-
+    
         // Evento INICIO
         if ($evento == 'INICIO') {
             $logger->registrarEvento("INICIO: " . $this->contador);
@@ -384,7 +390,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("ASUNTO: $asuntoEmailBuscar");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-
+    
         // Evento REGISTRADO
         if ($evento == 'REGISTRADO_PROCESADO') {
             $this->info("- ID DEL CORREO: {$this->correoId}");
@@ -394,7 +400,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-
+    
         // Evento REGISTRADO
         if ($evento == 'REGISTRADO_RECHAZADO') {
             $this->info("- ID DEL CORREO: {$this->correoId}");
@@ -404,16 +410,15 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-
+    
         // Evento RECHAZADO
         if ($evento == 'RECHAZADO') {
-             
             $this->info("----------------------------------------------------------");
             $this->info('- Fecha Correo: ' . $this->correoFecha);
             $this->info("- ID DEL CORREO: {$this->correoId}");
             $this->info("- REMITENTE: {$this->remitenteCorreo}");
-            $this->info("- NOMBRE ARCHIVO: " . $this->nombreArchivo);
-            $this->info("- TIPO ARCHIVO: " . $this->tipoArchivo); 
+            $this->info("- NOMBRE ARCHIVO: " . $nombreArchivo);
+            $this->info("- TIPO ARCHIVO: " . $tipoArchivo); 
             $this->info("- ASUNTO DEL CORREO:  {$this->asuntoCorreo}");
             $this->info('- FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $this->info("- ESTADO: RECHAZADO");
@@ -421,12 +426,12 @@ class InventarioTerceros extends Command
             $this->info("- Acciones: Se realiza el envío de la notificación al remitente.");
             $this->info("- ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
             $this->info("----------------------------------------------------------");
-
+    
             $logger->registrarEvento('Fecha Correo: ' . $this->correoFecha);
             $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
             $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
-            $logger->registrarEvento("NOMBRE ARCHIVO: " . $this->nombreArchivo);
-            $logger->registrarEvento("TIPO ARCHIVO: " . $this->tipoArchivo);
+            $logger->registrarEvento("NOMBRE ARCHIVO: " . $nombreArchivo);
+            $logger->registrarEvento("TIPO ARCHIVO: " . $tipoArchivo);
             $logger->registrarEvento("ASUNTO DEL CORREO:  {$this->asuntoCorreo}");
             $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $logger->registrarEvento("ESTADO: RECHAZADO");
@@ -434,14 +439,14 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("Acciones: Se realiza el envío de la notificación al remitente.");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-
+    
         // Evento PROCESADO
         if ($evento == 'PROCESADO') {
             $this->info("----------------------------------------------------------");
             $this->info('Fecha Correo: ' . $this->correoFecha);
             $this->info("Id Correo: {$this->correoId}");
             $this->info("Remitente: {$this->remitenteCorreo}");
-            $this->info("Nombre Archivo: " . $this->nombreArchivo);
+            $this->info("Nombre Archivo: " . $nombreArchivo);
             $this->info('ASUNTO DEL CORREO: ' . $this->asuntoCorreo);
             $this->info('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $this->info("Estado: PROCESADO");
@@ -449,13 +454,13 @@ class InventarioTerceros extends Command
             $this->info("Archivo Guardado: " . env('RUTA_CARPETA_INV_TERCEROS'));
             $this->info("- ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
             $this->info("----------------------------------------------------------");
-
+    
             $logger->registrarEvento("FECHA CORREO: " . $this->correoFecha);
             $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
             $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
-            $logger->registrarEvento("NOMBRE ARCHIVO: " . $this->nombreArchivo);
-            $logger->registrarEvento("TIPO ARCHIVO: " . $this->tipoArchivo);
-            $logger->registrarEventoo('ASUNTO DEL CORREO: ' . $this->asuntoCorreo);
+            $logger->registrarEvento("NOMBRE ARCHIVO: " . $nombreArchivo);
+            $logger->registrarEvento("TIPO ARCHIVO: " . $tipoArchivo);
+            $logger->registrarEvento('ASUNTO DEL CORREO: ' . $this->asuntoCorreo);
             $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $logger->registrarEvento("ESTADO: PROCESADO");
             $logger->registrarEvento("Observación: Se descargó el archivo");
@@ -463,34 +468,34 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-
+    
         // Evento NOFORMATO
         if ($evento == 'NOFORMATO') {
             $this->info("----------------------------------------------------------");
             $this->info('- Fecha Correo: ' . $this->correoFecha);
             $this->info("- ID DEL CORREO: {$this->correoId}");
             $this->info("- REMITENTE: {$this->remitenteCorreo}");
-            $this->info("- NOMBRE ARCHIVO: " . $this->nombreArchivo);
-            $this->info("- TIPO ARCHIVO: " . $this->tipoArchivo);
+            $this->info("- NOMBRE ARCHIVO: " . $nombreArchivo);
+            $this->info("- TIPO ARCHIVO: " . $tipoArchivo);
             $this->info('- ASUNTO DEL CORREO: ' . $this->asuntoCorreo);
             $this->info('- FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $this->info("- ESTADO: RECHAZADO");
             $this->info("- OBSERVACIÓN: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
             $this->info("Acciones: Se realiza el envío de la notificación al remitente.");
-
+    
             $logger->registrarEvento('FECHA CORREO: ' . $this->correoFecha);
             $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
             $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
-            $logger->registrarEvento("NOMBRE ARCHIVO: " . $this->nombreArchivo);
-            $logger->registrarEvento("TIPO ARCHIVO: " . $this->tipoArchivo);
-            $logger->registrarEventoo('ASUNTO DEL CORREO: ' . $this->asuntoCorreo);
+            $logger->registrarEvento("NOMBRE ARCHIVO: " . $nombreArchivo);
+            $logger->registrarEvento("TIPO ARCHIVO: " . $tipoArchivo);
+            $logger->registrarEvento('ASUNTO DEL CORREO: ' . $this->asuntoCorreo);
             $logger->registrarEvento('FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $logger->registrarEvento("ESTADO: RECHAZADO");
             $logger->registrarEvento("OBSERVACIÓN: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
             $logger->registrarEvento("ACCIONES: Se realiza el envío de la notificación al remitente.");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-
+    
         // Evento FIN
         if ($evento == 'FIN') {
             $this->info('Correos encontrados: ' . $this->emailEncontrados);
@@ -498,7 +503,7 @@ class InventarioTerceros extends Command
             $this->info('Nuevos correos Procesados: ' . $this->emailNuevos);
             $this->info('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
             $this->info('Proceso de correos electrónicos completado.');
-
+    
             $logger->registrarEvento('Correos encontrados: ' . $this->emailEncontrados);
             $logger->registrarEvento('Ya han sido procesados (P & R): ' . $this->emailProcesados);
             $logger->registrarEvento('Nuevos correos Procesados: ' . $this->emailNuevos);
@@ -507,6 +512,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("__________________________________________________________");
         }
     }
+    
     private function getContador() //Manejo del contador de log
     {
         // Ruta del archivo JSON para almacenar el contador

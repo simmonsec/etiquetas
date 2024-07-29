@@ -147,14 +147,12 @@
                 @endif
             </div>
             <div class="details">
-                <p>
-                    <i>
-                        <center>Este es un mensaje generado automáticamente por nuestro sistema</center>
-                    </i>
+                <p style="text-align: center;">
+                    <b>No responda a este correo.</b><br>
+                    <i>Este es un mensaje generado automáticamente por nuestro sistema.</i>
                 </p>
-            </div>
-        </div>
-
+            </div> 
+        </div> 
         <div class="footer">
             <p>&copy; {{ date('Y') }} Simmons. Todos los derechos reservados.</p>
         </div>
