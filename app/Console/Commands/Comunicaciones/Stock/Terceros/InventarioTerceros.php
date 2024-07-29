@@ -17,14 +17,11 @@ class InventarioTerceros extends Command
     public $causas = [];
     public $cantidadRegistros = 0;
     public $contador = 0;
-
     public $emailEncontrados = 0;
     public $emailProcesados = 0;
     public $emailNoProcesados = 0;
     public $emailNuevos = 0;
-
     public $logsIfo = true;
-
     public $fechaCorreo;
     public $correoId;
     public $correoFecha;
@@ -38,7 +35,6 @@ class InventarioTerceros extends Command
     public $nombreArchivo;
     public $cantidadArchivo;
     public $servicioGmail;
-
     public function __construct()
     {
         parent::__construct();
@@ -160,7 +156,6 @@ class InventarioTerceros extends Command
 
         return $mensajes;
     }
-
     private function verificarAdjunto($correo, $servicioGmail)
     {
         $correoId = $correo->getId();
@@ -181,21 +176,17 @@ class InventarioTerceros extends Command
                 }
             }
         }
-
         // Convertir internalDate a una fecha legible
         $internalDate = $correo->getInternalDate();
         $fechaCorreo = date('Y-m-d H:i:s', $internalDate / 1000);
-
         // Llamada al método recursivo
         $this->verificarPartes($partes, $tieneAdjuntos, $cantidadAdjunto, $adjuntos, $servicioGmail, $correoId);
-
         if ($cantidadAdjunto > 0) {
             foreach ($adjuntos as $adjunto) {
                 $this->tipoArchivo = $adjunto['mimeType'];
                 $this->nombreArchivo = $adjunto['filename'];
             }
         }
-
         $this->correoFecha = $fechaCorreo;
         $this->remitenteCorreo = $remitente;
         $this->correoId = $correoId;
@@ -204,113 +195,84 @@ class InventarioTerceros extends Command
         $this->cantidadArchivo = $cantidadAdjunto;
         $this->adjuntos = $adjuntos;
         $this->fragmentoCorreo = $fragmentoCorreo;
-
         return [
-            'correoId' => $correoId,
-            'correoFecha' => $fechaCorreo,
-            'asuntoCorreo' => $payload->getHeaders()[0]->getValue(), // Ajustar si necesario
-            'remitenteCorreo' => $remitente, // Ajustar si necesario
-            'tieneAdjuntos' => $tieneAdjuntos,
-            'cantidadAdjunto' => $cantidadAdjunto,
-            'adjuntos' => $adjuntos,
-            'fragmentoCorreo' => $fragmentoCorreo
+            'correoId'          => $correoId,
+            'correoFecha'       => $fechaCorreo,
+            'asuntoCorreo'      => $payload->getHeaders()[0]->getValue(), // Ajustar si necesario
+            'remitenteCorreo'   => $remitente, // Ajustar si necesario
+            'tieneAdjuntos'     => $tieneAdjuntos,
+            'cantidadAdjunto'   => $cantidadAdjunto,
+            'adjuntos'          => $adjuntos,
+            'fragmentoCorreo'   => $fragmentoCorreo
         ];
     }
-
     private function correoYaProcesado($idCorreo)
     {
         $archivoRegistro = storage_path('InventarioTerceros/json/correos_procesados.json');
-
         if (file_exists($archivoRegistro)) {
             $correosProcesados = json_decode(file_get_contents($archivoRegistro), true);
-
             foreach ($correosProcesados as $correo) {
                 if ($correo['id'] === $idCorreo) {
-                    // print_r("ID REGISTRADO PROCESADO: ".$correo['id']."\n");
                     return true;
                 }
             }
         }
-
         return false;
     }
     private function correoNoValidoYaRegistrado($idCorreo)
     {
         $rutaJson = storage_path('InventarioTerceros/json/correos_no_validos.json');
-
         if (file_exists($rutaJson)) {
             $correosNoValidos = json_decode(file_get_contents($rutaJson), true);
-
             foreach ($correosNoValidos as $correo) {
                 if ($correo['id'] === $idCorreo) {
-                    //print_r("ID REGISTRADO: ".$correo['id']."\n");
                     return true;
                 }
             }
         }
-
         return false;
     }
-
     public function handle()
     {
         $this->getContador();
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
-
         $cliente = $this->getServicioGoogle();
         $this->servicioGmail = $this->getServicioeGmail($cliente, $logger);
-
-
         try {
             $this->registroEventos('INICIO', $logger);
-
             // Primera consulta: buscar correos por asunto
             $correos = $this->getCorreos($this->servicioGmail, $logger);
-
             if ($this->emailEncontrados > 0) {
-
                 //Obtener los mensajes, y traerlos ordenados.
                 $mensajes = $this->ObtenerMensajesEmail($correos);
-
                 foreach ($mensajes as $correo) {
-
                     $datosCorreo = $this->verificarAdjunto($correo, $this->servicioGmail);
                     $this->tipoArchivo;
                     $this->nombreArchivo;
-                    print_r("NOMBRE ARCHIVO: ".$this->nombreArchivo."\n");
-                    print_r("TIPO ARCHIVO: ".$this->tipoArchivo."\n");
-                    if ($this->correoYaProcesado($this->correoId) || $this->correoNoValidoYaRegistrado($this->correoId)) {  //  INDENTIFICAR SI YA FUE ANTES BARRIDO MEDIANTE EL ID
-
-                        $this->registroEventos('REGISTRADO', $logger);
+                    if ($this->correoYaProcesado($this->correoId)){
+                          //  INDENTIFICAR SI YA FUE ANTES BARRIDO MEDIANTE EL ID
+                          $this->registroEventos('REGISTRADO_PROCESADO', $logger);
+                          $this->emailProcesados += 1;
+                     } elseif ($this->correoNoValidoYaRegistrado($this->correoId)) {
+                        $this->registroEventos('REGISTRADO_RECHAZADO', $logger);
                         $this->emailProcesados += 1;
-
                     } elseif ($correo->getPayload() && $correo->getPayload()->getParts()) //verifica si el correo tiene las partes y encabezados
                     {
-
                         $numPartes = count($correo->getPayload()->getParts());
-
                         foreach ($correo->getPayload()->getParts() as $parte) {
-                             
                             // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
                             if ($this->nombreArchivo && preg_match('/.*Stock\.xlsx$/', $this->nombreArchivo) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false)) {
-
                                 // Obtener ID del adjunto si existe
                                 $idAdjunto = $parte->getBody()->getAttachmentId();
-                                if ($idAdjunto) {
-
+                                if ($idAdjunto) { 
                                     $this->guardarArchivo($idAdjunto, $this->servicioGmail, $correo, $this->nombreArchivo, $this->correoFecha, $this->remitenteCorreo, $this->tipoArchivo, $this->correoId);
                                 }
-                            } else { //EL ARCHIVO NO CUMPLE CON EL FORMATO NI EL TIPO
-
-
+                            } else { //EL ARCHIVO NO CUMPLE CON EL FORMATO NI EL TIPO 
                                 if ($numPartes > 1 && $this->nombreArchivo === "") {
                                     continue;
-                                } else {
-                                    // Determinar el tipo de archivo usando la función
-                                    $tipoArchivo = $this->determinarTipoArchivo($this->tipoArchivo);
+                                } else { 
                                     $this->registrarCorreoNoValido($this->correoId, $correo->getSnippet(), $this->correoFecha);
-                                    $this->registroEventos("RECHAZADO", $logger); 
-
+                                    $this->registroEventos("RECHAZADO", $logger);  
                                     // Enviar el correo electrónico
                                     try {
                                         if ($this->tipoArchivo !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
@@ -326,30 +288,21 @@ class InventarioTerceros extends Command
                                         continue;
                                     }
                                     $this->emailNoProcesados += 1;
-                                }
-
+                                } 
                             }
                         }
                     } else {
                         $this->info('No se encontraron partes de mensaje o archivos adjuntos en este correo.');
                         $logger->registrarEvento('Observación: No se encontraron partes de mensaje o archivos adjuntos en este correo.');
                     }
-                }
-
+                } 
             }
         } catch (\Exception $e) {
             $logger->registrarEvento('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
-            $this->error('Error en la consulta y procesamiento de correos: ' . $e->getMessage());
-
-        }
-
-        $this->registroEventos('FIN', $logger);
-
-
+            $this->error('Error en la consulta y procesamiento de correos: ' . $e->getMessage()); 
+        } 
+        $this->registroEventos('FIN', $logger); 
     }
-
-
-
     private function verificarPartes($partes, &$tieneAdjuntos, &$cantidadAdjunto, &$adjuntos, $servicioGmail, $correoId)
     {
         foreach ($partes as $parte) {
@@ -395,8 +348,6 @@ class InventarioTerceros extends Command
             }
         }
     }
-
-
     private function registroEventos($evento, $logger)
     {
         // Configuración de parámetros comunes
@@ -419,9 +370,19 @@ class InventarioTerceros extends Command
         }
     
         // Evento REGISTRADO
-        if ($evento == 'REGISTRADO') {
+        if ($evento == 'REGISTRADO_PROCESADO') {
             $this->info("- ID DEL CORREO: {$this->correoId}");
             $this->info("- ESTADO: [ANTES PROCESADO Y REGISTRADO]");
+            $this->info("----------------------------------------------------------");
+            $logger->registrarEvento("CORREO ID: {$this->correoId} YA FUE VERIFICADO");
+            $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
+            $logger->registrarEvento("----------------------------------------------------------");
+        }
+
+         // Evento REGISTRADO
+         if ($evento == 'REGISTRADO_RECHAZADO') {
+            $this->info("- ID DEL CORREO: {$this->correoId}");
+            $this->info("- ESTADO: [ANTES RECHAZADO Y REGISTRADO]");
             $this->info("----------------------------------------------------------");
             $logger->registrarEvento("CORREO ID: {$this->correoId} YA FUE VERIFICADO");
             $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
@@ -523,51 +484,6 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("__________________________________________________________");
         }
     }
-    
-
-    private function encontarArchivoNombre($parte)
-    {
-        $nombreArchivo = '';
-        foreach ($parte as $subParte) {
-            $nombreArchivo = $subParte->getFilename() ?: '';
-        }
-        return $nombreArchivo;
-    }
-
-
-    private function encontarArchivotipo($parte)
-    {
-        $tipoMime = '';
-        foreach ($parte as $subParte) {
-            $tipoMime = $subParte->getMimeType() ?: '';
-        }
-        return $tipoMime;
-    }
-
-    private function obtenerRemitenteEmail($correo)
-    {
-        // Inicializar la variable remitente
-        $remitente = null;
-
-        // Obtener el payload y buscar el encabezado "From" para obtener el remitente
-        if ($correo->getPayload() && $correo->getPayload()->getHeaders()) {
-            foreach ($correo->getPayload()->getHeaders() as $header) {
-                if ($header->getName() === 'From') {
-                    $remitente = $header->getValue();
-                    break;
-                }
-            }
-        }
-
-        return $remitente;
-    }
-    private function ObtenerFechaEmail($correo)
-    {
-        // Convertir internalDate a una fecha legible
-        $internalDate = $correo->getInternalDate();
-        $fechaCorreo = date('Y-m-d H:i:s', $internalDate / 1000);
-        return $fechaCorreo;
-    }
     private function getContador() //Manejo del contador de log
     {
         // Ruta del archivo JSON para almacenar el contador
@@ -588,17 +504,6 @@ class InventarioTerceros extends Command
         $datosJson = ['contador' => $this->contador];
         file_put_contents($rutaJson, json_encode($datosJson));
     }
-
-
-
-
-
-    /**
-     * Genera un nombre de archivo en PascalCase si contiene espacios.
-     *
-     * @param string $nombreOriginal Nombre original del archivo.
-     * @return string Nombre del archivo en PascalCase.
-     */
     private function generarNombreArchivo($nombreOriginal)
     {
         if (strpos($nombreOriginal, ' ') === false) {
@@ -615,14 +520,6 @@ class InventarioTerceros extends Command
             return $nombreEnPascalCase;
         }
     }
-
-
-    /**
-     * Registra un correo como procesado para evitar duplicados.
-     *
-     * @param string $idCorreo ID del correo a registrar.
-     * @return void
-     */
     private function registrarCorreoProcesado($idCorreo, $fragmento, $fechaCorreo)
     {
         $rutaJson = storage_path('InventarioTerceros/json/correos_procesados.json');
@@ -631,8 +528,6 @@ class InventarioTerceros extends Command
         if (file_exists($rutaJson)) {
             $correosProcesados = json_decode(file_get_contents($rutaJson), true);
         }
-
-
 
         $correosProcesados[] = [
             'id' => $idCorreo,
@@ -647,14 +542,6 @@ class InventarioTerceros extends Command
             $this->error('Error al registrar el correo procesado: ' . $e->getMessage());
         }
     }
-
-    /**
-     * Registra el ID y fragmento del correo con adjunto no válido.
-     *
-     * @param string $idCorreo ID del correo.
-     * @param string $fragmento Fragmento del correo.
-     * @return void
-     */
     private function registrarCorreoNoValido($idCorreo, $fragmento, $fechaCorreo)
     {
         $rutaJson = storage_path('InventarioTerceros/json/correos_no_validos.json');
@@ -676,10 +563,6 @@ class InventarioTerceros extends Command
             $this->error('Error al registrar el correo no válido: ' . $e->getMessage());
         }
     }
-
-
-
-    // Función para validar el archivo adjunto
     private function validarArchivoAdjunto($datosAdjunto, $nombreArchivo, $correoId)
     {
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
@@ -690,19 +573,14 @@ class InventarioTerceros extends Command
                 // Guardar el archivo temporalmente para validación
                 $tempFile = tempnam(sys_get_temp_dir(), 'excel') . '.xlsx';
                 file_put_contents($tempFile, base64_decode(strtr($datosAdjunto, '-_', '+/')));
-
                 // Cargar el archivo Excel con PhpSpreadsheet
                 $spreadsheet = IOFactory::load($tempFile);
-
                 // Validar contenido en celdas específicas
                 $errores = $this->verificarContenidoArchivoExcel($spreadsheet);
-
                 // Eliminar el archivo temporal
                 unlink($tempFile);
-
                 if (empty($errores)) {
                     $archivoValido = true; // El archivo es válido
-
                 } else {
                     $this->causas = $errores; // Guardar los errores encontrados
                     print_r("ESTOS SON LOS ERRORES: " . implode(', ', $errores));
@@ -717,25 +595,19 @@ class InventarioTerceros extends Command
 
         return $archivoValido;
     }
-
-
-
     public function verificarContenidoArchivoExcel($spreadsheet)
     {
         $errores = [];
         $hoja = $spreadsheet->getActiveSheet();
-
         // Verificar el nombre de la hoja
         if ($hoja->getTitle() !== 'Hoja1') {
             $errores[] = 'El nombre de la hoja no es "Hoja1".';
         }
-
         // Verificar que la celda E1 contenga algún valor para ver si trae la fecha
         $celdaE1 = $hoja->getCell('E1')->getValue();
         if (empty($celdaE1)) {
             $errores[] = 'La celda E1 está vacía o no contiene un valor válido.';
         }
-
         // Validar cabeceras
         $cabecerasEsperadas = [
             'A5' => 'CODIGO',
@@ -750,7 +622,6 @@ class InventarioTerceros extends Command
                 $errores[] = "La celda $celda no contiene el valor esperado '$valorEsperado'.";
             }
         }
-
         // Validar contenido de las filas a partir de la fila 6
         $ultimaFila = $hoja->getHighestRow();
         for ($fila = 6; $fila <= $ultimaFila; $fila++) {
@@ -764,80 +635,13 @@ class InventarioTerceros extends Command
                 $errores[] = "La celda E{$fila} (Disponible) no contiene un número válido.";
             }
         }
-
         return $errores;
     }
-
-
-    private function determinarTipoArchivo($tipoMime)
-    {
-        // Definir los tipos MIME y sus descripciones
-        $tiposMime = [
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'XLSX',
-            'application/vnd.ms-excel' => 'XLS',
-            'application/pdf' => 'PDF',
-            'image/jpeg' => 'JPEG',
-            'image/png' => 'PNG',
-            'multipart/mixed' => 'MULTIPART MIXED',
-            'text/plain' => 'TEXT PLAIN',
-        ];
-
-        // Retornar la descripción si se encuentra el tipo MIME, de lo contrario retorna el tipo MIME mismo
-        return $tiposMime[$tipoMime] ?? $tipoMime;
-    }
-
-    private function ObtenerNombreArchivo($parte)
-    {
-        // Obtener los headers de la parte
-        $headers = $parte->getHeaders();
-        $nombreArchivo = null;
-
-        // Imprimir todos los headers para diagnóstico
-        foreach ($headers as $header) {
-
-            print_r("Header Value: " . $header->getValue() . "\n");
-        }
-
-        // Buscar en los headers el Content-Disposition
-        foreach ($headers as $header) {
-            if ($header->getName() == 'Content-Disposition') {
-                // Buscar el nombre del archivo en el valor del header
-                if (preg_match('/filename="([^"]+)"/', $header->getValue(), $matches)) {
-                    $nombreArchivo = $matches[1];
-                    break; // Salir del bucle si se encontró el nombre
-                }
-            } elseif ($header->getName() == 'Content-Type') {
-                // Algunas veces el nombre del archivo puede estar en Content-Type
-                if (preg_match('/name="([^"]+)"/', $header->getValue(), $matches)) {
-                    $nombreArchivo = $matches[1];
-                }
-            }
-        }
-
-        if ($nombreArchivo) {
-            // Imprimir el nombre del archivo
-            print_r("Nombre del archivo: " . $nombreArchivo . "\n");
-            return $nombreArchivo;
-        } else {
-            print_r("No se encontró el nombre del archivo en los headers.\n");
-            return $nombreArchivo;
-        }
-    }
-
     private function guardarArchivo($idAdjunto, $servicioGmail, $correo, $nombreArchivo, $fechaCorreo, $remitente, $tipoMime, $correoId)
     {
-
-        /**
-         * 1. VALIDAMOS QUE EL ADJUNTO SI EXISTA MEDIANTE LA OBTENCION DEL ID
-         * 2. CONSULTAMOS CON LA FUNCION VALIDAR ARCHIVO EXCEL ADJUNTO SI EL MISMO CUMPLE CON LA ESTRUCTURA SOLICITADA
-         * 3. GENERAMOS EL NUEVO NOMBRE PARA GUARDAR
-         * 4. SI NO CUMPLE ENVIAMOS LA NOTIFICACION DEL MISMO
-         */
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
         $adjunto = $servicioGmail->users_messages_attachments->get('me', $correo->getId(), $idAdjunto); //se utiliza para recuperar los datos de un archivo adjunto específico dentro de un mensaje de correo electrónico
         $datosAdjunto = $adjunto->getData(); // se obtiene el contenido del archivo adjunto codificado en base64
-
-
         $archivoValido = $this->validarArchivoAdjunto($datosAdjunto, $nombreArchivo, $correoId); //validacion del archivo dentro, celda a y e, y sus encabezados
         $nombreNuevo = $this->generarNombreArchivo($nombreArchivo); //genera el nombre del archivo
 
@@ -845,18 +649,12 @@ class InventarioTerceros extends Command
             // Guardar el archivo en almacenamiento local en la carpeta InventarioTerceros
             $rutaLocalStorage = storage_path("InventarioTerceros/archivos/{$nombreNuevo}");
             $guardadoStorage = file_put_contents($rutaLocalStorage, base64_decode(strtr($datosAdjunto, '-_', '+/')));
-
             // Guardar el archivo en una ruta específica
             $rutaLocal = env('RUTA_CARPETA_INV_TERCEROS') . $nombreNuevo;
             $guardado = file_put_contents($rutaLocal, base64_decode(strtr($datosAdjunto, '-_', '+/')));
-
             if ($guardado !== false && $guardadoStorage !== false) {
-
-
                 $this->registrarCorreoProcesado($correo->getId(), $correo->getSnippet(), $fechaCorreo);
-
                 $this->registroEventos("PROCESADO",$logger); 
-
                 // Enviar el correo electrónico, porque ya se proceso con exito
                 try {
                     $remitenteTemp = 'siglotecnologico2024@gmail.com';
@@ -866,8 +664,6 @@ class InventarioTerceros extends Command
                     $logger->registrarEvento("***Fallo el envio de correo, para notificar que EL PROCESO FUE COMPLETADO.");
                     $this->info($th);
                 }
-
-
                 $this->info("\n");
                 $this->emailNuevos += 1;
             } else {
@@ -876,14 +672,10 @@ class InventarioTerceros extends Command
             }
         } else {
             //EL EXCEL NO CUMPLE CON EL FORMATO DESEADO
-
             if (!$this->correoNoValidoYaRegistrado($correo->getId())) { //verifica si ya fue procesasdo como rechazado
                 $this->registrarCorreoNoValido($correo->getId(), $correo->getSnippet(), $fechaCorreo); //registrar en el json para no volver a procesar
-
                 $this->registroEventos("NOFORMATO",$logger);
-                
                 $this->causas[] = "El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.";
-
                 if (!empty($this->causas)) {
                     $logger->registrarEvento("Posibles Causas: ");
                     foreach ($this->causas as $key => $value) {
@@ -892,11 +684,8 @@ class InventarioTerceros extends Command
                         $this->info(" $cantidad - $value");
                     }
                 }
-
-              
                 $remitenteTemp = 'siglotecnologico2024@gmail.com';
                 $this->info("- ACCION TOMADA: Se envio un correo a {$remitenteTemp} \n");
-
                 // Enviar el correo electrónico
                 try {
                     Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'RECHAZADO'));
