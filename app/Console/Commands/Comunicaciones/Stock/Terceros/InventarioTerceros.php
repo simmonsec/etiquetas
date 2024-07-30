@@ -679,7 +679,13 @@ class InventarioTerceros extends Command
             $rutaLocalStorage = storage_path("InventarioTerceros/archivos/{$nombreNuevo}");
             $guardadoStorage = file_put_contents($rutaLocalStorage, base64_decode(strtr($datosAdjunto, '-_', '+/')));
             // Guardar el archivo en una ruta específica
-            $rutaLocal = env('RUTA_CARPETA_INV_TERCEROS')."/". $nombreNuevo;
+            $rutaLocal = env("RUTA_CARPETA_INV_TERCEROS")."/". $nombreNuevo;
+			// Si el archivo existe, eliminarlo
+			if (file_exists($rutaLocal)) {
+				if (!unlink($rutaLocal)) {
+					return response()->json(['error' => 'No se pudo eliminar el archivo existente: ' . $rutaLocal], 500);
+				}
+			}
             $guardado = file_put_contents($rutaLocal, base64_decode(strtr($datosAdjunto, '-_', '+/')));
             if ($guardado !== false && $guardadoStorage !== false) {
                 $this->registrarCorreoProcesado($correo->getId(), $correo->getSnippet(), $fechaCorreo);
