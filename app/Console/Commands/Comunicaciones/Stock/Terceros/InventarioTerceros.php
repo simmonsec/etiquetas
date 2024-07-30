@@ -8,6 +8,7 @@ use App\Services\LoggerPersonalizado;
 use Illuminate\Support\Facades\Mail;
 use App\Services\Mail\RespuestaInventarioTerceros;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
 
 class InventarioTerceros extends Command
@@ -158,7 +159,7 @@ class InventarioTerceros extends Command
     }
     private function verificarAdjunto($correo, $servicioGmail)
     {
-        $this->tipoArchivo =null;
+        $this->tipoArchivo = null;
         $this->nombreArchivo = null;
         $this->asuntoCorreo = null;
         $correoId = $correo->getId();
@@ -169,19 +170,19 @@ class InventarioTerceros extends Command
         $cantidadAdjunto = 0;
         $adjuntos = [];
         $fragmentoCorreo = $correo->getSnippet();
-     
+
         // Obtener el payload y buscar el encabezado "From" para obtener el remitente
-        if ($correo->getPayload() && $correo->getPayload()->getHeaders()) { 
-            foreach ($correo->getPayload()->getHeaders() as $header) { 
+        if ($correo->getPayload() && $correo->getPayload()->getHeaders()) {
+            foreach ($correo->getPayload()->getHeaders() as $header) {
                 if ($header->getName() === 'From') {
                     $remitente = $header->getValue();
                     break;
-                } 
+                }
             }
-        } 
+        }
         $headers = $correo->getPayload()->getHeaders();
         $asuntoCorreo = '';
-        
+
         foreach ($headers as $header) {
             if ($header->getName() === 'Subject') {
                 $asuntoCorreo = $header->getValue();
@@ -200,14 +201,14 @@ class InventarioTerceros extends Command
                 $this->tipoArchivo = $adjunto['mimeType'];
                 $this->nombreArchivo = $adjunto['filename'];
             }
-        } 
-    
+        }
+
         $this->correoFecha = $fechaCorreo;
         $this->remitenteCorreo = $remitente;
-        $this->correoId = $correoId; 
+        $this->correoId = $correoId;
         $this->tieneAdjuntos = $tieneAdjuntos;
         $this->cantidadArchivo = $cantidadAdjunto;
-         
+
         $this->fragmentoCorreo = $fragmentoCorreo;
         return [
             'correoId' => $correoId,
@@ -259,10 +260,10 @@ class InventarioTerceros extends Command
             if ($this->emailEncontrados > 0) {
                 //Obtener los mensajes, y traerlos ordenados.
                 $mensajes = $this->ObtenerMensajesEmail($correos);
-               
+
                 foreach ($mensajes as $correo) {
                     $this->verificarAdjunto($correo, $this->servicioGmail);
-                    
+
                     if ($this->correoYaProcesado($this->correoId)) {
                         //  INDENTIFICAR SI YA FUE ANTES BARRIDO MEDIANTE EL ID
                         $this->registroEventos('REGISTRADO_PROCESADO', $logger);
@@ -274,37 +275,39 @@ class InventarioTerceros extends Command
                     {
                         $numPartes = count($correo->getPayload()->getParts());
                         //foreach ($correo->getPayload()->getParts() as $parte) {
-                            // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
-                            
-                            if ($this->nombreArchivo && preg_match('/.*Stock\.xlsx$/', $this->nombreArchivo) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false || $this->tipoArchivo === 'application/octet-stream')) {   
+                        // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
 
-                                if ( $this->adjuntos) {
-                                    $this->guardarArchivo( $this->adjuntos, $this->servicioGmail, $correo, $this->nombreArchivo, $this->correoFecha, $this->remitenteCorreo, $this->tipoArchivo, $this->correoId);
-                                }
-                            } else { //EL ARCHIVO NO CUMPLE CON EL FORMATO NI EL TIPO 
-                                if ($numPartes > 1 && $this->nombreArchivo === "") {
-                                    continue;
-                                } else {
-                                    
-                                    $this->registrarCorreoNoValido($this->correoId, $correo->getSnippet(), $this->correoFecha);
-                                    $this->registroEventos("RECHAZADO", $logger);
-                                    // Enviar el correo electrónico
-                                    try {
-                                        if ($this->tipoArchivo !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-                                            $this->causas[] = 'EL TIPO DE ARCHIVO NO SOPORTADO: ' . $this->tipoArchivo;
-                                        } else {
-                                            $this->causas[] = 'El Nombre del archivo no es Valido.';
-                                        }
-                                        $remitenteTemp = 'siglotecnologico2024@gmail.com';
-                                        Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($this->correoId, $this->nombreArchivo, $this->remitenteCorreo, $this->causas, 'RECHAZADO'));
-                                    } catch (\Throwable $th) {
-                                        $logger->registrarEvento("***Fallo el envio de correo, para notificar que el formato no cumple.");
-                                        $this->info($th);
-                                        continue;
-                                    }
-                                    $this->emailNoProcesados += 1;
-                                }
+                        if ($this->nombreArchivo && preg_match('/.*Stock\.xlsx$/', $this->nombreArchivo) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false || $this->tipoArchivo === 'application/octet-stream')) {
+
+                            if ($this->adjuntos) {
+                                $this->guardarArchivo($this->adjuntos, $this->servicioGmail, $correo, $this->nombreArchivo, $this->correoFecha, $this->remitenteCorreo, $this->tipoArchivo, $this->correoId);
                             }
+                        } else { //EL ARCHIVO NO CUMPLE CON EL FORMATO NI EL TIPO 
+                            if ($numPartes > 1 && $this->nombreArchivo === "") {
+                                continue;
+                            } else {
+
+                                $this->registrarCorreoNoValido($this->correoId, $correo->getSnippet(), $this->correoFecha);
+                                $this->registroEventos("RECHAZADO", $logger);
+                                // Enviar el correo electrónico
+                                try {
+                                    if ($this->tipoArchivo !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+                                        $this->causas[] = 'EL TIPO DE ARCHIVO NO SOPORTADO: ' . $this->tipoArchivo;
+                                    } else {
+                                        $this->causas[] = 'El Nombre del archivo no es Valido.';
+                                    }
+                                    $remitenteTemp = ['gosorio@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
+                                    foreach ($remitenteTemp as $value) {
+                                        Mail::to($value)->send(new RespuestaInventarioTerceros($this->correoId, $this->nombreArchivo, $this->remitenteCorreo, $this->causas, 'RECHAZADO'));
+                                    }
+                                } catch (\Throwable $th) {
+                                    $logger->registrarEvento("***Fallo el envio de correo, para notificar que el formato no cumple.");
+                                    $this->info($th);
+                                    continue;
+                                }
+                                $this->emailNoProcesados += 1;
+                            }
+                        }
                         //}
                     } else {
                         $this->info('No se encontraron partes de mensaje o archivos adjuntos en este correo.');
@@ -326,8 +329,8 @@ class InventarioTerceros extends Command
                 $tieneAdjuntos = true;
                 $cantidadAdjunto++;
                 //$filename = $parte->getFilename();
-                  // Obtener y limpiar el nombre del archivo
-            $filename = str_replace(' ', '', $parte->getFilename()); 
+                // Obtener y limpiar el nombre del archivo
+                $filename = str_replace(' ', '', $parte->getFilename());
                 $mimeType = $parte->getMimeType();
                 $body = $parte->getBody();
                 $attachmentId = $body->getAttachmentId();
@@ -371,12 +374,12 @@ class InventarioTerceros extends Command
         // Inicializar $nombreArchivo y $tipoArchivo
         $nombreArchivo = $this->nombreArchivo ?? "SIN ARCHIVO";
         $tipoArchivo = $this->tipoArchivo ?? "SIN ARCHIVO";
-    
+
         // Configuración de parámetros comunes
         $asuntoEmailBuscar = env('EMAIL_INVENTARIOS_TERCEROS_ASUNTO_BUSCAR');
         $destinatario = $this->option('destinatario') ?? env('EMAIL_INVENTARIOS_TERCEROS_DESTINATARIO');
         $fechaBuscarDesde = $this->option('fecha') ?? date('Y/m/d', strtotime(env('EMAIL_FECHA_DESDE_BUSCAR')));
-    
+
         // Evento INICIO
         if ($evento == 'INICIO') {
             $logger->registrarEvento("INICIO: " . $this->contador);
@@ -390,7 +393,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("ASUNTO: $asuntoEmailBuscar");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-    
+
         // Evento REGISTRADO
         if ($evento == 'REGISTRADO_PROCESADO') {
             $this->info("- ID DEL CORREO: {$this->correoId}");
@@ -400,7 +403,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-    
+
         // Evento REGISTRADO
         if ($evento == 'REGISTRADO_RECHAZADO') {
             $this->info("- ID DEL CORREO: {$this->correoId}");
@@ -410,7 +413,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("CORREO FECHA: {$this->correoFecha}");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-    
+
         // Evento RECHAZADO
         if ($evento == 'RECHAZADO') {
             $this->info("----------------------------------------------------------");
@@ -418,7 +421,7 @@ class InventarioTerceros extends Command
             $this->info("- ID DEL CORREO: {$this->correoId}");
             $this->info("- REMITENTE: {$this->remitenteCorreo}");
             $this->info("- NOMBRE ARCHIVO: " . $nombreArchivo);
-            $this->info("- TIPO ARCHIVO: " . $tipoArchivo); 
+            $this->info("- TIPO ARCHIVO: " . $tipoArchivo);
             $this->info("- ASUNTO DEL CORREO:  {$this->asuntoCorreo}");
             $this->info('- FRAGMENTO DEL CORREO: ' . $this->fragmentoCorreo);
             $this->info("- ESTADO: RECHAZADO");
@@ -426,7 +429,7 @@ class InventarioTerceros extends Command
             $this->info("- Acciones: Se realiza el envío de la notificación al remitente.");
             $this->info("- ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
             $this->info("----------------------------------------------------------");
-    
+
             $logger->registrarEvento('Fecha Correo: ' . $this->correoFecha);
             $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
             $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
@@ -439,7 +442,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("Acciones: Se realiza el envío de la notificación al remitente.");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-    
+
         // Evento PROCESADO
         if ($evento == 'PROCESADO') {
             $this->info("----------------------------------------------------------");
@@ -454,7 +457,7 @@ class InventarioTerceros extends Command
             $this->info("Archivo Guardado: " . env('RUTA_CARPETA_INV_TERCEROS'));
             $this->info("- ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
             $this->info("----------------------------------------------------------");
-    
+
             $logger->registrarEvento("FECHA CORREO: " . $this->correoFecha);
             $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
             $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
@@ -468,7 +471,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("ACCIÓN TOMADA: Se envió un correo a {$this->remitenteCorreo}");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-    
+
         // Evento NOFORMATO
         if ($evento == 'NOFORMATO') {
             $this->info("----------------------------------------------------------");
@@ -482,7 +485,7 @@ class InventarioTerceros extends Command
             $this->info("- ESTADO: RECHAZADO");
             $this->info("- OBSERVACIÓN: El archivo no cumple con el formato requerido. Por favor, revisa el contenido del mismo.");
             $this->info("Acciones: Se realiza el envío de la notificación al remitente.");
-    
+
             $logger->registrarEvento('FECHA CORREO: ' . $this->correoFecha);
             $logger->registrarEvento("ID DEL CORREO: {$this->correoId}");
             $logger->registrarEvento("REMITENTE: {$this->remitenteCorreo}");
@@ -495,7 +498,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("ACCIONES: Se realiza el envío de la notificación al remitente.");
             $logger->registrarEvento("----------------------------------------------------------");
         }
-    
+
         // Evento FIN
         if ($evento == 'FIN') {
             $this->info('Correos encontrados: ' . $this->emailEncontrados);
@@ -503,7 +506,7 @@ class InventarioTerceros extends Command
             $this->info('Nuevos correos Procesados: ' . $this->emailNuevos);
             $this->info('Nuevos correos Rechazados: ' . $this->emailNoProcesados);
             $this->info('Proceso de correos electrónicos completado.');
-    
+
             $logger->registrarEvento('Correos encontrados: ' . $this->emailEncontrados);
             $logger->registrarEvento('Ya han sido procesados (P & R): ' . $this->emailProcesados);
             $logger->registrarEvento('Nuevos correos Procesados: ' . $this->emailNuevos);
@@ -512,7 +515,7 @@ class InventarioTerceros extends Command
             $logger->registrarEvento("__________________________________________________________");
         }
     }
-    
+
     private function getContador() //Manejo del contador de log
     {
         // Ruta del archivo JSON para almacenar el contador
@@ -612,7 +615,7 @@ class InventarioTerceros extends Command
                     $archivoValido = true; // El archivo es válido
                 } else {
                     $this->causas = $errores; // Guardar los errores encontrados
-                    print_r("ESTOS SON LOS ERRORES: " . implode(', ', $errores));
+                    // print_r("ESTOS SON LOS ERRORES: " . implode(', ', $errores));
                     $logger->registrarEvento('El archivo adjunto no cumple con los requisitos.');
                 }
             } catch (\Exception $e) {
@@ -653,7 +656,20 @@ class InventarioTerceros extends Command
         }
         // Validar contenido de las filas a partir de la fila 6
         $ultimaFila = $hoja->getHighestRow();
-        for ($fila = 6; $fila <= $ultimaFila; $fila++) {
+        $ultimaFilaConDatos = '';
+        // Iterar desde la última fila hacia arriba para encontrar la última fila no vacía
+        for ($fila = $ultimaFila; $fila >= 1; $fila--) {
+            if (!$this->filaVacia($hoja, $fila)) {
+                $ultimaFilaConDatos = $fila;
+                break;
+            }
+        }
+
+        print_r("TOTAL DE FILAS ENCONTRADAS: " . $ultimaFila . "\n");
+        print_r("ULTIMA FILA ENCONTRADA CON DATO: " . $ultimaFilaConDatos . "\n");
+        print_r($ultimaFila != $ultimaFilaConDatos ? "SE ENCONTRARON: " . $ultimaFila - $ultimaFilaConDatos . " FILAS VACIAS" : "");
+        print_r("\n");
+        for ($fila = 6; $fila <= $ultimaFilaConDatos; $fila++) {
             $codigo = $hoja->getCell('A' . $fila)->getValue();
             $disponible = $hoja->getCell('E' . $fila)->getValue();
 
@@ -666,6 +682,23 @@ class InventarioTerceros extends Command
         }
         return $errores;
     }
+
+    // Función para comprobar si una fila está vacía
+    private function filaVacia(Worksheet $worksheet, $fila)
+    {
+        foreach ($worksheet->getRowIterator($fila, $fila) as $row) {
+            $cellIterator = $row->getCellIterator();
+            $cellIterator->setIterateOnlyExistingCells(false); // También iterar sobre las celdas vacías
+            foreach ($cellIterator as $cell) {
+                if ($cell->getValue() !== null && $cell->getValue() !== '') {
+                    return false; // La fila no está vacía
+                }
+            }
+        }
+        return true; // La fila está vacía
+    }
+
+
     private function guardarArchivo($idAdjunto, $servicioGmail, $correo, $nombreArchivo, $fechaCorreo, $remitente, $tipoMime, $correoId)
     {
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);
@@ -679,22 +712,24 @@ class InventarioTerceros extends Command
             $rutaLocalStorage = storage_path("InventarioTerceros/archivos/{$nombreNuevo}");
             $guardadoStorage = file_put_contents($rutaLocalStorage, base64_decode(strtr($datosAdjunto, '-_', '+/')));
             // Guardar el archivo en una ruta específica
-            $rutaLocal = env("RUTA_CARPETA_INV_TERCEROS")."/". $nombreNuevo;
-			// Si el archivo existe, eliminarlo
-			if (file_exists($rutaLocal)) {
-				if (!unlink($rutaLocal)) {
-					return response()->json(['error' => 'No se pudo eliminar el archivo existente: ' . $rutaLocal], 500);
-				}
-			}
+            $rutaLocal = env("RUTA_CARPETA_INV_TERCEROS") . "/" . $nombreNuevo;
+            // Si el archivo existe, eliminarlo
+            if (file_exists($rutaLocal)) {
+                if (!unlink($rutaLocal)) {
+                    return response()->json(['error' => 'No se pudo eliminar el archivo existente: ' . $rutaLocal], 500);
+                }
+            }
             $guardado = file_put_contents($rutaLocal, base64_decode(strtr($datosAdjunto, '-_', '+/')));
             if ($guardado !== false && $guardadoStorage !== false) {
                 $this->registrarCorreoProcesado($correo->getId(), $correo->getSnippet(), $fechaCorreo);
                 $this->registroEventos("PROCESADO", $logger);
                 // Enviar el correo electrónico, porque ya se proceso con exito
                 try {
-                    $remitenteTemp = 'siglotecnologico2024@gmail.com';
+                    $remitenteTemp = ['gosorio@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
                     $this->causas = [];
-                    Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'PROCESADO'));
+                    foreach ($remitenteTemp as $value) {
+                        Mail::to($value)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'PROCESADO'));
+                    }
                 } catch (\Throwable $th) {
                     $logger->registrarEvento("***Fallo el envio de correo, para notificar que EL PROCESO FUE COMPLETADO.");
                     $this->info($th);
@@ -719,11 +754,14 @@ class InventarioTerceros extends Command
                         $this->info(" $cantidad - $value");
                     }
                 }
-                $remitenteTemp = 'siglotecnologico2024@gmail.com';
-                $this->info("- ACCION TOMADA: Se envio un correo a {$remitenteTemp} \n");
+                $remitenteTemp = ['gosorio@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
+
                 // Enviar el correo electrónico
                 try {
-                    Mail::to($remitenteTemp)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'RECHAZADO'));
+                    foreach ($remitenteTemp as $value) {
+                        $this->info("- ACCION TOMADA: Se envio un correo a {$value} \n");
+                        Mail::to($value)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'RECHAZADO'));
+                    }
                 } catch (\Throwable $th) {
                     $logger->registrarEvento("***Fallo el envio de correo, para notificar que el formato no cumple.");
                     $this->info($th);
