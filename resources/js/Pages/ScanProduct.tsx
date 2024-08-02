@@ -245,11 +245,11 @@ export default function ScanProduct() {
 
                 try {
                     // Verificar el formato del código escaneado
-                    const response = await axios.get(`/getEtiquetaFormato/${scannedCode}`);
-
-                    const ean13 = response.data.EAN13;
-                    const ean14 = response.data.EAN14;
-                    const ean128 = response.data.EAN128;
+                   // const response = await axios.get(`/getEtiquetaFormato/${scannedCode}`);
+                    const response = getEtiquetaFormato(scannedCode)
+                    const ean13 = response.EAN13;
+                    const ean14 = response.EAN14;
+                    const ean128 = response.EAN128;
 
                     setEan13(ean13);
                     setEan14(ean14);
@@ -433,6 +433,26 @@ export default function ScanProduct() {
             }
         }
     };
+    const getEtiquetaFormato = (codigo: string) => {
+        let EAN13: string | null = null;
+        let EAN14: string | null = null;
+        let EAN128: string | null = null;
+    
+        if (codigo.length === 13) {
+            // Si el código tiene 13 dígitos, es un EAN13 
+            EAN13 = codigo;
+        } else if (codigo.length > 13 && codigo.startsWith('01') && codigo.substring(16, 18) === '17') {
+            // Si el código cumple con las condiciones de ser EAN128
+            EAN128 = codigo;
+            EAN14 = codigo.substring(2, 16); // Obtengo el EAN14 desde el EAN128
+        } else {
+            // Devolver un error si la etiqueta no es EAN13 o EAN128 válida
+            return { error: 'Código de etiqueta no válido. La longitud no pertenece a los EAN13 o el formato EAN128 no es válido.' };
+        }
+    
+        // Devolver los códigos encontrados
+        return { EAN13, EAN14, EAN128 };
+    }
 
     // Función para actualizar el índice de códigos escaneados en localStorage
     const updateIndex = useCallback((code: string, scannedCode: ScannedCode) => {
