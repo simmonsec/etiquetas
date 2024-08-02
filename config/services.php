@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google' => [
+        'credentials_path_info' => env('GOOGLE_CREDENTIALS_PATH_INFO', storage_path('app/credentials_info_simmons.json')),
+        'spreadsheet_id_info' => env('GOOGLE_SHEETS_SPREADSHEET_ID_INFO'),
+    ],
+
 ];

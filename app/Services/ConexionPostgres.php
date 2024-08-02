@@ -4,10 +4,11 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 
-class Conexion4k
+class ConexionPostgres
 {
     protected $server;
     protected $port;
+    protected $database;
     protected $dsn;
     protected $user;
     protected $password;
@@ -17,18 +18,17 @@ class Conexion4k
     public function __construct($dsn=null, $user=null, $password=null)
     {
         if($dsn && $user && $password ) {
-            $this->dsn      = $dsn;
-            $this->user     = $user;
+            $this->dsn = $dsn;
+            $this->user = $user;
             $this->password = $password;
-           
         }else{
-            $this->driver   = env('BD_4D_DRIVER', '4D v18 ODBC Driver 64-bit') ;
-            $this->server   = env('BD_4D_HOST', '');  
-            $this->port     = env('DB_4D_PORT', ''); 
-            $this->user     = env('DB_4D_USERNAME', ''); 
-            $this->password = env('DB_4D_PASSWORD', ''); 
-            
-            $this->dsn = "Driver={$this->driver};Server={$this->server};Port={$this->port};UID={$this->user};PWD={$this->password}";
+            $this->driver   = env('BD_POSTGRES_DRIVER', 'PostgreSQL Unicode(X64)');
+            $this->server   = env('BD_POSTGRES_HOST', '');  
+            $this->port     = env('DB_POSTGRES_PORT', ''); 
+            $this->database = env('DB_POSTGRES_DATABASE', '');
+            $this->user     = env('DB_POSTGRES_USERNAME', ''); 
+            $this->password = env('DB_POSTGRES_PASSWORD', ''); 
+            $this->dsn = "Driver={$this->driver};Server={$this->server};Port={$this->port};Database={$this->database}";
            
         }
 
@@ -37,15 +37,17 @@ class Conexion4k
 
     protected function connect()
     {
-        Log::info('Intentando conectar con la base de datos 4D usando DSN: ' . $this->dsn);
+        Log::info('Intentando conectar con la base de datos Postgres usando DSN: ' . $this->dsn);
         $this->conn = odbc_connect($this->dsn, $this->user, $this->password);
 
         if (!$this->conn) {
-            Log::error('Error al conectar con la base de datos 4D: ' . odbc_errormsg());
-            throw new \Exception('Error al conectar con la base de datos 4D: ' . odbc_errormsg());
+            Log::error('Error al conectar con la base de datos Postgres: ' . odbc_errormsg());
+            throw new \Exception('Error al conectar con la base de datos Postgres: ' . odbc_errormsg());
         }
 
-        Log::info('Conexión exitosa a la base de datos 4D.');
+        Log::info('Conexión exitosa a la base de datos Postgres.');
+
+ 
     }
 
     public function executeQuery($sql)

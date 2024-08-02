@@ -682,7 +682,6 @@ class InventarioTerceros extends Command
         }
         return $errores;
     }
-
     // Función para comprobar si una fila está vacía
     private function filaVacia(Worksheet $worksheet, $fila)
     {
@@ -697,8 +696,6 @@ class InventarioTerceros extends Command
         }
         return true; // La fila está vacía
     }
-
-
     private function guardarArchivo($idAdjunto, $servicioGmail, $correo, $nombreArchivo, $fechaCorreo, $remitente, $tipoMime, $correoId)
     {
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'InventariosTerceros']);

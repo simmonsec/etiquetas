@@ -54,4 +54,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+
+//SHEETS 
+use App\Http\Controllers\GoogleSheetsController;
+
+
+Route::get('/auth/google', [GoogleSheetsController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/callback', [GoogleSheetsController::class, 'handleGoogleCallback'])->name('callback');
+Route::get('/sheets', [GoogleSheetsController::class, 'accessGoogleSheets'])->name('sheets');
+
 require __DIR__.'/auth.php';

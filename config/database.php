@@ -97,11 +97,11 @@ return [
         '4d' => [ 
             'driver' => '4d',
             'dsn' => 'MBAPruebas', // Aquí debes usar el DSN adecuado
-            'host' => env('DB_4D_HOST', '192.168.0.16'),
+            'host' => env('DB_4D_HOST', ''),
             'port' => env('DB_4D_PORT', '19812'),
             'charset' => 'UTF-8',
-            'username' => env('DB_4D_USERNAME', 'API'),
-            'password' => env('DB_4D_PASSWORD', 'API'),
+            'username' => env('DB_4D_USERNAME', ''),
+            'password' => env('DB_4D_PASSWORD', ''),
             'options' => [
                 PDO::ATTR_CASE => PDO::CASE_LOWER,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
