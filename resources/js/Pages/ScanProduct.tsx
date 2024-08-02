@@ -29,7 +29,7 @@ import {
     AlertDialogTrigger,
 } from "@/shadcn/ui/alert-dialog"
 
-
+import { MdError } from 'react-icons/md';
 
 export default function ScanProduct() {
     //011786122290095617000000102407
@@ -77,7 +77,7 @@ export default function ScanProduct() {
     const [isOpen, setIsOpen] = useState(false);
 
     const continueButtonRef = useRef<HTMLButtonElement | null>(null);
-
+    const [flash, setFlash] = useState(false);
 
     // Al iniciar, se consulta el estado actual:
     // El estado actual se determina verificando si hay una sesión activa en el localStorage.
@@ -245,7 +245,7 @@ export default function ScanProduct() {
 
                 try {
                     // Verificar el formato del código escaneado
-                   // const response = await axios.get(`/getEtiquetaFormato/${scannedCode}`);
+                    // const response = await axios.get(`/getEtiquetaFormato/${scannedCode}`);
                     const response = getEtiquetaFormato(scannedCode)
                     const ean13 = response.EAN13;
                     const ean14 = response.EAN14;
@@ -302,26 +302,64 @@ export default function ScanProduct() {
                                 sessionData.lote = ean128.substring(26);
                             }
 
-                            const validScannedCode = {
-                                code: sessionData.code,
-                                EAN13: (ean13) ? ean13 : '',
-                                EAN14: ean14,
-                                EAN128: (ean128) ? ean128 : '',
-                                lote: sessionData.lote,
-                                producto: sessionData.producto,
-                                timestamp: timestamp
-                            };
+                            if (ean128 && ean128 !== sessionData.EAN128) {
 
-                            gestionesEtiqueta[timestamp] = [validScannedCode];
-                            localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
-                            // Actualizar el índice en localStorage después de guardar
-                            updateIndex(scannedCode, validScannedCode);
-                            // console.log('Etiqueta válida guardada: ', validScannedCode);
+                                setIsOpen(true);
+                                console.log("EAN128 INTRODUCIDO: " + ean128);
+                                console.log("EAN128 LOCALSTORAGE: " + sessionData.EAN128);
+                                console.log("NO SON IGUALES");
+                                // La etiqueta es inválida
+                                const ean13Invalido = ean13 && sessionData.EAN13 !== ean13 ? ean13 : null;
+                                const ean14Invalido = ean14 && sessionData.EAN14 !== ean14 ? ean14 : null;
+                                const ean128Invalido = ean128 && sessionData.EAN128 !== ean128 ? ean128 : null;
 
-                            // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
-                            if (inputRef.current) {
-                                inputRef.current.disabled = false; // Habilitar el input nuevamente
-                                inputRef.current.focus(); // Enfocar el input
+
+                                const invalidScannedCode = {
+                                    code: 'INVALIDO',
+                                    EAN13: ean13Invalido,
+                                    EAN14: ean14Invalido,
+                                    EAN128: ean128Invalido,
+                                    lote: 'INVALIDO',
+                                    producto: 'INVALIDO',
+                                    timestamp: timestamp
+                                };
+
+                                setIsOpen(true);
+                                setIsLoading(true);
+                                // Verificar si inputRef.current no es null antes de deshabilitarlo
+                                if (inputRef.current) {
+                                    inputRef.current.disabled = true; // Deshabilitar el input
+                                }
+                                gestionesEtiqueta[timestamp] = [invalidScannedCode];
+                                localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
+                                // Actualizar el índice en localStorage después de guardar
+                                updateIndex(scannedCode, invalidScannedCode);
+
+
+                            } else {
+                                const validScannedCode = {
+                                    code: sessionData.code,
+                                    EAN13: (ean13) ? ean13 : '',
+                                    EAN14: ean14,
+                                    EAN128: (ean128) ? ean128 : '',
+                                    lote: sessionData.lote,
+                                    producto: sessionData.producto,
+                                    timestamp: timestamp
+                                };
+
+                                gestionesEtiqueta[timestamp] = [validScannedCode];
+                                localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
+                                setFlash(true);
+                                setTimeout(() => setFlash(false), 150); // Desactiva el flash después de 1 segundo // Desactiva el flash después de 1 segundo
+                                // Actualizar el índice en localStorage después de guardar
+                                updateIndex(scannedCode, validScannedCode);
+                                // console.log('Etiqueta válida guardada: ', validScannedCode);
+
+                                // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                                if (inputRef.current) {
+                                    inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                    inputRef.current.focus(); // Enfocar el input
+                                }
                             }
                         }
                     } else {
@@ -437,7 +475,7 @@ export default function ScanProduct() {
         let EAN13: string | null = null;
         let EAN14: string | null = null;
         let EAN128: string | null = null;
-    
+
         if (codigo.length === 13) {
             // Si el código tiene 13 dígitos, es un EAN13 
             EAN13 = codigo;
@@ -449,7 +487,7 @@ export default function ScanProduct() {
             // Devolver un error si la etiqueta no es EAN13 o EAN128 válida
             return { error: 'Código de etiqueta no válido. La longitud no pertenece a los EAN13 o el formato EAN128 no es válido.' };
         }
-    
+
         // Devolver los códigos encontrados
         return { EAN13, EAN14, EAN128 };
     }
@@ -663,26 +701,33 @@ export default function ScanProduct() {
                 </div>
 
             )}
-            {isOpen && (
-                <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className='lg:text-5xl text-center text-red-500'>Código Inválido</AlertDialogTitle>
-                            <AlertDialogDescription className='lg:text-xl'>
-                                El código escaneado no coincide con la plantilla inicial. Por favor, verifica la Etiqueta e inténtalo de nuevo.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogAction
-                                ref={continueButtonRef}
-                                onClick={continuarScanner}
-                            >
-                                Continue
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+             {isOpen && (
+                <div className="fixed inset-0 bg-red-500 bg-opacity-70 z-40"></div>
             )}
+             {flash && (
+              <div className="fixed inset-0 bg-[#00f700] bg-opacity-50 z-40"></div>
+            )}
+            <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+                <AlertDialogContent className="border-4 border-red-500 z-50">
+                    <AlertDialogHeader  >
+                        <MdError className="text-red-500 mx-auto mb-4" size={58} />
+                        <AlertDialogTitle className='lg:text-5xl text-center text-red-500'>
+                            Código Inválido
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className='lg:text-xl'>
+                            El código escaneado no coincide con la plantilla inicial. Por favor, verifica la Etiqueta e inténtalo de nuevo.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction
+                            ref={continueButtonRef}
+                            onClick={continuarScanner}
+                        >
+                            Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <div className="py-1 px-2 mx-auto max-w-screen-xl text-center lg:py-5 bg-gray-20">
                 <div className="flex justify-center items-center gap-4 mt-1">
@@ -804,10 +849,7 @@ export default function ScanProduct() {
                                                 </CardDescription>
                                             </CardContent>
                                         </>
-                                    )}
-
-
-
+                                    )}  
                                 </Card>
                             )}
                         </div>
