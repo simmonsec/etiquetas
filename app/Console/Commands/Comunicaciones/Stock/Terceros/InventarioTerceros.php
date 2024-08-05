@@ -139,7 +139,7 @@ class InventarioTerceros extends Command
 
         return $correos;
     }
-
+    
     private function ObtenerMensajesEmail($resultadosAsunto)
     {
 
@@ -276,8 +276,8 @@ class InventarioTerceros extends Command
                         $numPartes = count($correo->getPayload()->getParts());
                         //foreach ($correo->getPayload()->getParts() as $parte) {
                         // Verificar si el nombre del archivo contiene "Stock" y termina con .xlsx
-
-                        if ($this->nombreArchivo && preg_match('/.*Stock\.xlsx$/', $this->nombreArchivo) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false || $this->tipoArchivo === 'application/octet-stream')) {
+                        $nombreArchivoComparar = mb_convert_case($this->nombreArchivo, MB_CASE_UPPER, "UTF-8");//poner a mayuscula el nombre
+                        if ($nombreArchivoComparar && preg_match('/.*STOCK\.XLSX$/', $nombreArchivoComparar) && (strpos($this->tipoArchivo, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') !== false || $this->tipoArchivo === 'application/octet-stream')) {
 
                             if ($this->adjuntos) {
                                 $this->guardarArchivo($this->adjuntos, $this->servicioGmail, $correo, $this->nombreArchivo, $this->correoFecha, $this->remitenteCorreo, $this->tipoArchivo, $this->correoId);
