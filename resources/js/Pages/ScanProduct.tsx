@@ -925,7 +925,7 @@ export default function ScanProduct() {
                                             <CardContent className="grid gap-4">
                                                 <CardDescription>
                                                     <b className="md:text-2xl text-[#322b9d]">N° Lote:</b>
-                                                    <strong className="md:text-4xl text-[#322b9d]">{sesionEtiqueta.lote}</strong>
+                                                    <strong className="md:text-4xl text-[#322b9d]"> {sesionEtiqueta.lote}</strong>
                                                 </CardDescription>
                                             </CardContent>
                                         </>
