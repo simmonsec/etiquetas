@@ -274,7 +274,6 @@ export default function ScanProduct() {
                             const ean14Invalido = ean14 && sessionData.EAN14 !== ean14 ? ean14 : null;
                             const ean128Invalido = ean128 && sessionData.EAN128 !== ean128 ? ean128 : null;
 
-
                             const invalidScannedCode = {
                                 code: 'INVALIDO',
                                 EAN13: ean13Invalido,
@@ -298,68 +297,139 @@ export default function ScanProduct() {
                             // console.log('Etiqueta inválida guardada: ', invalidScannedCode);
                         } else {
                             // La etiqueta es válida
-                            if (sessionData.lote == 0 && ean128) {
-                                sessionData.lote = ean128.substring(26);
-                            }
+                            if (ean128) {// SI LLEGA EL 128
+                                if (!sessionData.lote) {
 
-                            if (ean128 && ean128 !== sessionData.EAN128) {
+                                    let lote = ean128.substring(26);//EXTRAER EL LOTE PORQUE ES POR PRIMERA VE
+                                    let sessionDataAact = JSON.parse(localStorage.getItem('sessionData') || '{}') as {
+                                        lote: string;
+                                        EAN128: string;
+                                    };
 
-                                setIsOpen(true);
-                                console.log("EAN128 INTRODUCIDO: " + ean128);
-                                console.log("EAN128 LOCALSTORAGE: " + sessionData.EAN128);
-                                console.log("NO SON IGUALES");
-                                // La etiqueta es inválida
-                                const ean13Invalido = ean13 && sessionData.EAN13 !== ean13 ? ean13 : null;
-                                const ean14Invalido = ean14 && sessionData.EAN14 !== ean14 ? ean14 : null;
-                                const ean128Invalido = ean128 && sessionData.EAN128 !== ean128 ? ean128 : null;
+                                    // Asignar valores asegurándose de manejar valores nulos 
+                                    sessionDataAact.lote = lote
+                                    sessionDataAact.EAN128 = ean128
 
+                                    // Guardar el sessionData actualizado en el localStorage
+                                    localStorage.setItem('sessionData', JSON.stringify(sessionDataAact));
 
-                                const invalidScannedCode = {
-                                    code: 'INVALIDO',
-                                    EAN13: ean13Invalido,
-                                    EAN14: ean14Invalido,
-                                    EAN128: ean128Invalido,
-                                    lote: 'INVALIDO',
-                                    producto: 'INVALIDO',
-                                    timestamp: timestamp
-                                };
+                                    const validScannedCode = {
+                                        code: sessionData.code,
+                                        EAN13: (ean13) ? ean13 : '',
+                                        EAN14: ean14,
+                                        EAN128: (ean128) ? ean128 : '',
+                                        lote: sessionData.lote,
+                                        producto: sessionData.producto,
+                                        timestamp: timestamp
+                                    };
 
-                                setIsOpen(true);
-                                setIsLoading(true);
-                                // Verificar si inputRef.current no es null antes de deshabilitarlo
-                                if (inputRef.current) {
-                                    inputRef.current.disabled = true; // Deshabilitar el input
+                                    gestionesEtiqueta[timestamp] = [validScannedCode];
+                                    localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
+                                    setFlash(true);
+                                    setTimeout(() => setFlash(false), 150); // Desactiva el flash después de 1 segundo // Desactiva el flash después de 1 segundo
+                                    // Actualizar el índice en localStorage después de guardar
+                                    updateIndex(scannedCode, validScannedCode);
+                                    // console.log('Etiqueta válida guardada: ', validScannedCode);
+
+                                    // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                                    if (inputRef.current) {
+                                        inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                        inputRef.current.focus(); // Enfocar el input
+                                    }
+
+                                } else {
+                                    //ES UN 128 Y DEBE AGREGAR LA GESTION
+
+                                    if (sessionData.lote !== ean128.substring(26)) {// el 128 es invalido por el numero de lote
+                                        // La etiqueta es inválida
+                                        const ean13Invalido = ean13 && sessionData.EAN13 !== ean13 ? ean13 : null;
+                                        const ean14Invalido = ean14 && sessionData.EAN14 !== ean14 ? ean14 : null;
+                                        const ean128Invalido = ean128 && sessionData.EAN128 !== ean128 ? ean128 : null;
+
+                                        const invalidScannedCode = {
+                                            code: 'INVALIDO',
+                                            EAN13: ean13Invalido,
+                                            EAN14: ean14Invalido,
+                                            EAN128: ean128Invalido,
+                                            lote: 'INVALIDO',
+                                            producto: 'INVALIDO',
+                                            timestamp: timestamp
+                                        };
+
+                                        setIsOpen(true);
+                                        setIsLoading(true);
+                                        // Verificar si inputRef.current no es null antes de deshabilitarlo
+                                        if (inputRef.current) {
+                                            inputRef.current.disabled = true; // Deshabilitar el input
+                                        }
+                                        gestionesEtiqueta[timestamp] = [invalidScannedCode];
+                                        localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
+                                        // Actualizar el índice en localStorage después de guardar
+                                        updateIndex(scannedCode, invalidScannedCode);
+                                        // console.log('Etiqueta inválida guardada: ', invalidScannedCode);
+                                    } else {
+                                        const validScannedCode = {
+                                            code: sessionData.code,
+                                            EAN13: (ean13) ? ean13 : '',
+                                            EAN14: ean14,
+                                            EAN128: (ean128) ? ean128 : '',
+                                            lote: sessionData.lote,
+                                            producto: sessionData.producto,
+                                            timestamp: timestamp
+                                        };
+
+                                        gestionesEtiqueta[timestamp] = [validScannedCode];
+                                        localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
+                                        setFlash(true);
+                                        setTimeout(() => setFlash(false), 150); // Desactiva el flash después de 1 segundo // Desactiva el flash después de 1 segundo
+                                        // Actualizar el índice en localStorage después de guardar
+                                        updateIndex(scannedCode, validScannedCode);
+                                        // console.log('Etiqueta válida guardada: ', validScannedCode);
+
+                                        // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                                        if (inputRef.current) {
+                                            inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                            inputRef.current.focus(); // Enfocar el input
+                                        }
+                                    }
+
                                 }
-                                gestionesEtiqueta[timestamp] = [invalidScannedCode];
-                                localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
-                                // Actualizar el índice en localStorage después de guardar
-                                updateIndex(scannedCode, invalidScannedCode);
 
 
                             } else {
-                                const validScannedCode = {
-                                    code: sessionData.code,
-                                    EAN13: (ean13) ? ean13 : '',
-                                    EAN14: ean14,
-                                    EAN128: (ean128) ? ean128 : '',
-                                    lote: sessionData.lote,
-                                    producto: sessionData.producto,
-                                    timestamp: timestamp
-                                };
+                                if (ean13 === sessionData.EAN13) { //VALIDA QUE EL EAN13 INGRESADO EXISTA EN EL LOCAL STORAGE
+                                    if (sessionData.lote == 0 && ean128) {
+                                        sessionData.lote = ean128.substring(26);
+                                    }
+                                    const validScannedCode = {
+                                        code: sessionData.code,
+                                        EAN13: (ean13) ? ean13 : '',
+                                        EAN14: ean14,
+                                        EAN128: (ean128) ? ean128 : '',
+                                        lote: sessionData.lote,
+                                        producto: sessionData.producto,
+                                        timestamp: timestamp
+                                    };
 
-                                gestionesEtiqueta[timestamp] = [validScannedCode];
-                                localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
-                                setFlash(true);
-                                setTimeout(() => setFlash(false), 150); // Desactiva el flash después de 1 segundo // Desactiva el flash después de 1 segundo
-                                // Actualizar el índice en localStorage después de guardar
-                                updateIndex(scannedCode, validScannedCode);
-                                // console.log('Etiqueta válida guardada: ', validScannedCode);
+                                    gestionesEtiqueta[timestamp] = [validScannedCode];
+                                    localStorage.setItem('gestionesEtiqueta', JSON.stringify(gestionesEtiqueta));
+                                    setFlash(true);
+                                    setTimeout(() => setFlash(false), 150); // Desactiva el flash después de 1 segundo // Desactiva el flash después de 1 segundo
+                                    // Actualizar el índice en localStorage después de guardar
+                                    updateIndex(scannedCode, validScannedCode);
+                                    // console.log('Etiqueta válida guardada: ', validScannedCode);
 
-                                // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                                    // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
+                                    if (inputRef.current) {
+                                        inputRef.current.disabled = false; // Habilitar el input nuevamente
+                                        inputRef.current.focus(); // Enfocar el input
+                                    }
+                                }
                                 if (inputRef.current) {
                                     inputRef.current.disabled = false; // Habilitar el input nuevamente
                                     inputRef.current.focus(); // Enfocar el input
                                 }
+
                             }
                         }
                     } else {
@@ -479,11 +549,17 @@ export default function ScanProduct() {
         if (codigo.length === 13) {
             // Si el código tiene 13 dígitos, es un EAN13 
             EAN13 = codigo;
+
         } else if (codigo.length > 13 && codigo.startsWith('01') && codigo.substring(16, 18) === '17') {
             // Si el código cumple con las condiciones de ser EAN128
             EAN128 = codigo;
+
             EAN14 = codigo.substring(2, 16); // Obtengo el EAN14 desde el EAN128
         } else {
+            setError("Código de etiqueta no válido");
+            setDetalleAlerta("Código de etiqueta no válido. La longitud no pertenece a los EAN13 o el formato EAN128 no es válido");
+            alertas();
+            setEstadoAlerta(true);
             // Devolver un error si la etiqueta no es EAN13 o EAN128 válida
             return { error: 'Código de etiqueta no válido. La longitud no pertenece a los EAN13 o el formato EAN128 no es válido.' };
         }
@@ -657,7 +733,7 @@ export default function ScanProduct() {
     const continuarScanner = () => {
         // Verificar si inputRef.current no es null antes de habilitarlo y enfocarlo
         if (inputRef.current) {
-            console.log("continua");
+
             inputRef.current.disabled = false; // Habilitar el input nuevamente
 
             // Retrasar el enfoque para permitir que el AlertDialog se cierre primero
@@ -701,11 +777,11 @@ export default function ScanProduct() {
                 </div>
 
             )}
-             {isOpen && (
+            {isOpen && (//ayuda a mostrar la pantalla en rojo
                 <div className="fixed inset-0 bg-red-500 bg-opacity-70 z-40"></div>
             )}
-             {flash && (
-              <div className="fixed inset-0 bg-[#00f700] bg-opacity-50 z-40"></div>
+            {flash && (//ayuda a mostrar la pantalla en verde
+                <div className="fixed inset-0 bg-[#00f700] bg-opacity-50 z-40"></div>
             )}
             <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
                 <AlertDialogContent className="border-4 border-red-500 z-50">
@@ -772,6 +848,10 @@ export default function ScanProduct() {
                         ) : status === 'INICIAR' ? (
                             <>
                                 <ExitIcon className="mr-2 h-4 w-4" /> FINALIZAR
+                                <span className="ml-2 px-2 rounded-full bg-gray-100 text-[#322b9d]">
+                                    {scannedCodes.length === 0 ? '' : scannedCodes.length}
+                                </span>
+
                             </>
                         ) : (
                             <>
@@ -849,7 +929,7 @@ export default function ScanProduct() {
                                                 </CardDescription>
                                             </CardContent>
                                         </>
-                                    )}  
+                                    )}
                                 </Card>
                             )}
                         </div>
