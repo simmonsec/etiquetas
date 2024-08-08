@@ -296,7 +296,7 @@ class InventarioTerceros extends Command
                                     } else {
                                         $this->causas[] = 'El Nombre del archivo no es Valido.';
                                     }
-                                    $remitenteTemp = ['gosorio@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
+                                    $remitenteTemp = ['sistemas@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
                                     foreach ($remitenteTemp as $value) {
                                         Mail::to($value)->send(new RespuestaInventarioTerceros($this->correoId, $this->nombreArchivo, $this->remitenteCorreo, $this->causas, 'RECHAZADO'));
                                     }
@@ -722,7 +722,7 @@ class InventarioTerceros extends Command
                 $this->registroEventos("PROCESADO", $logger);
                 // Enviar el correo electrónico, porque ya se proceso con exito
                 try {
-                    $remitenteTemp = ['gosorio@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
+                    $remitenteTemp = ['sistemas@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
                     $this->causas = [];
                     foreach ($remitenteTemp as $value) {
                         Mail::to($value)->send(new RespuestaInventarioTerceros($correo->getId(), $nombreArchivo, $remitente, $this->causas, 'PROCESADO'));
@@ -751,7 +751,7 @@ class InventarioTerceros extends Command
                         $this->info(" $cantidad - $value");
                     }
                 }
-                $remitenteTemp = ['gosorio@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
+                $remitenteTemp = ['sistemas@simmons.com.ec' , 'siglotecnologico2024@gmail.com'];
 
                 // Enviar el correo electrónico
                 try {
