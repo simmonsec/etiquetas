@@ -37,6 +37,7 @@ class Conexion4k
 
     protected function connect()
     {
+        //$this->dsn = env('BD_4D_HOST', 'MBAPruebas'); // DSN de 4D configurado en ODBC
         Log::info('Intentando conectar con la base de datos 4D usando DSN: ' . $this->dsn);
         $this->conn = odbc_connect($this->dsn, $this->user, $this->password);
 

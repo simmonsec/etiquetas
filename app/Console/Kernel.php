@@ -13,7 +13,8 @@ class Kernel extends ConsoleKernel
      * @var array 
      */
     protected $commands = [ 
-        'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros'
+        'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros',
+         'App\Console\Commands\Migraciones\migrarDatosOdbc'
     ];
 
     /**
@@ -23,6 +24,7 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
         $schedule->command('inventario:terceros')->everyMinute(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
+        $schedule->command('migrar:odbc')->everyMinute();
     }
 
     /**

@@ -6,6 +6,9 @@ use Illuminate\Console\Command;
 use App\Services\ConexionPostgres;
 use App\Services\Conexion4k;
 use App\Models\GnlParametrosConsultasErpTb;
+use App\Models\InvtProductoMovimiento;
+use DateTime;
+use Illuminate\Support\Facades\DB;
 
 class migrarDatosOdbc extends Command
 {
@@ -19,73 +22,19 @@ class migrarDatosOdbc extends Command
 
     public function handle()
     {
-        // Crear un nuevo registro postgres
-        GnlParametrosConsultasErpTb::create([
-            'descripcion' => 'Conexion CON 4D Y POSTGRES, PARA LA MIGRACION DE LA TABLA INVT_Producto_Movimientos',
-            'q_dsn' => "Driver=4D v18 ODBC Driver 64-bit;Server=192.168.0.16;Port=19812;UID=API;PWD=API",
-            'q_user' => 'API',
-            'q_password' => 'API',
-            'q_comando' => "SELECT 
-                              DOC_ID_CORP2, 
-                              IN_OUT, QUANTITY, 
-                              UNIT_COST, 
-                              PRODUCT_ID_CORP, 
-                              WAR_CODE, COD_CLIENTE, 
-                              COD_SALESMAN, 
-                              TRANS_DATE, 
-                              ADJUSTMENT_TYPE, 
-                              LINE_TOTAL, 
-                              Receta_Original,
-                              NUMERO_PEDIDO_MBA,
-                              DISCOUNT_AMOUNT,
-                              [TAX TOTAL],
-                              Precio_Venta_Original,
-                              [TRANS COST],
-                              DISCOUNT,
-                              [TOT RETURN UNIT],
-                              Anulada,
-                              No_Considerar_KARDEX
-                          FROM 
-                              INVT_Producto_Movimientos 
-                          WHERE 
-                              CONFIRM=TRUE AND 
-                              TRANS_DATE >'2023/10/31' AND 
-                              TRANS_DATE<'2025/01/01'
-                              order by TRANS_DATE",
-
-            'i_dsn' => 'Driver=PostgreSQL Unicode(X64);Server=192.168.0.39;Port=5432;Database=BD_SMMS01',
-            'i_user' => 'app01user01',
-            'i_password' => '$mm$us2401',
-            'i_comando' => 'INSERT INTO "MBA3"."INVT_Producto_Movimientos" (
-                 "DOC_ID_CORP2",
-                "IN_OUT",
-                "QUANTITY",
-                "UNIT_COST",
-                "PRODUCT_ID_CORP",
-                "WAR_CODE",
-                "COD_CLIENTE",
-                "COD_SALESMAN",
-                "TRANS_DATE", 
-                "ADJUSTMENT_TYPE",
-                "LINE_TOTAL",
-                "RECETA_ORIGINAL",
-                "NUMERO_PEDIDO_MBA",
-                "DISCOUNT_AMOUNT",
-                "TAX_TOTAL",
-                "PRECIO_VENTA_ORIGINAL",
-                "TRANS_COST",
-                "DISCOUNT",
-                "TOT_RETURN_UNIT",
-                "ANULADA",
-                "NO_CONSIDERAR_KARDEX" 
-              ) VALUES ',
-            'secuenciaEjecucion' => 'pendiente',
-            'resultadoEjecucion' => 'pendiente'
-        ]); 
-
+        // Truncar la tabla asociada con el modelo
+        //DB::statement('TRUNCATE TABLE "MBA3"."INVT_Producto_Movimientos"');
+        //print_r('ELIMINAR DATOS DE LA TABLA INVT_Producto_Movimientos \n');
+        //print_r("\n");
 
         // Obtener datos para la conexión y ejecución
-        $parametros = GnlParametrosConsultasErpTb::where('id', 1)->first();
+        $parametros = GnlParametrosConsultasErpTb::where('id', 16)->first();
+        if ($parametros->d_comando) {
+            print_r("Entro a eliminar datos. ");
+            print_r("\n");
+            Log::info("Entro a eliminar datos: {$parametros->d_comando}");
+            DB::statement($parametros->d_comando);
+        }
 
         // Datos para la conexión 4D
         $q_dsn = $parametros->q_dsn;
@@ -103,104 +52,84 @@ class migrarDatosOdbc extends Command
         $db4DService = new Conexion4k($q_dsn, $q_user, $q_password);
         $dbPostgresService = new ConexionPostgres($i_dsn, $i_user, $i_password);
 
+        // Obtener la conexión desde el servicio
+        $connection4D = $db4DService->getConnection();
+        $connectionPostgres = $dbPostgresService->getConnection();
+
         // Procesar datos en lotes con paginación
-        $batchSize = 500;
+        $batchSize = 10000;
         $offset = 0;
-        $continue = true;
-       
-        $connection = $db4DService->getConnection();
-         // Ejecuta la consulta para obtener la cantidad
-        $resultado = $this->consulta($connection, "SELECT COUNT(*) AS cantidad FROM INVT_Producto_Movimientos");
+        // Ejecuta la consulta para obtener la cantidad
+        $resultado = $this->consulta($connection4D, "SELECT COUNT(*) AS cantidad FROM INVT_Producto_Movimientos WHERE 
+                                  CONFIRM=TRUE AND 
+                                   TRANS_DATE > '2024/01/01' AND 
+                                   TRANS_DATE < '2025/01/01'");
 
-        // Verifica que el resultado no esté vacío
         if (!empty($resultado)) {
-            // Accede al primer elemento del array
             $primeraFila = $resultado[0];
-
-            // Accede al valor de la expresión (asegúrate de usar la clave correcta)
             $cantidad = $primeraFila['cantidad'];
-    
-            // Imprime o usa la cantidad según sea necesario
-            print_r("Cantidad de registros: " . $cantidad. "\n");
+            print_r("Cantidad de registros: " . $cantidad . "\n");
         } else {
             print_r("No se obtuvieron resultados.");
         }
-        while ($continue) {
-            $q_comandoPaginado = $q_comando . " LIMIT $batchSize OFFSET $offset";
-            $datos = $this->consulta($connection , $q_comandoPaginado);
-            if (!empty($datos)) {
-                // Insertar datos por lotes en PostgreSQL
-                $this->insertarBatch($dbPostgresService, $i_comando, $datos);
-                $offset += $batchSize;
-           
-                print_r("Insertados: " . $offset . " DE $cantidad" . " Restan: " . $cantidad - $offset . "\n");
-              
-                Log::info("Insertados: {$offset}  DE {$cantidad} Restan:  {$cantidad} {$offset} ");
-            } else {
-                $continue = false;
+
+        DB::beginTransaction();
+
+        try {
+            while (true) {
+                 // Medir el tiempo de inicio
+                 $startTime = microtime(true);
+    
+                $q_comandoPaginado = $q_comando . " LIMIT $batchSize OFFSET $offset";
+                $datos = $this->consulta($connection4D, $q_comandoPaginado);
+
+                if (!empty($datos)) {
+                    // Insertar datos por lotes en PostgreSQL
+                    $success = $this->insertarBatch($connectionPostgres, $i_comando, $datos);
+
+                    if (!$success) {
+                        throw new \Exception("Falló la inserción del batch");
+                    }
+
+                    $offset += $batchSize;
+                    $restante = $cantidad - $offset;
+
+                    if ($batchSize >= $restante) {
+                        $batchSize = $restante;
+                    }
+
+                    if ($restante < 1) {
+                        break;
+                    }
+
+                    print_r("Insertados: " . $offset . " DE $cantidad" . " Restan: " . $restante . "\n");
+                    Log::info("Insertados: {$offset} DE {$cantidad} Restan: {$restante}");
+                } else {
+                    break;
+                }
+                  // Medir el tiempo de fin
+                  $endTime = microtime(true);
+                  $elapsedTime = $endTime - $startTime;
+  
+                  Log::info('Batch INSERT ejecutado exitosamente en ' . number_format($elapsedTime, 4) . ' segundos.');
             }
-           /*  if ($offset >= 50000) {
-                $continue = false;
-            } */
+
+            DB::commit();
+            Log::info("Transacción completada y confirmada con éxito.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error durante la migración: ' . $e->getMessage());
+            throw $e;
         }
+
         // Cerrar las conexiones después de terminar
-    $this->cerrarConexion($db4DService);
-    $this->cerrarConexion($dbPostgresService);
+        $this->cerrarConexion($db4DService);
+        $this->cerrarConexion($dbPostgresService);
 
         Log::info('Migración completada exitosamente.');
-
     }
 
-    public function insertarBatch($dbService, $sql, $batch)
-    {
-        $connection = $dbService->getConnection();
-        $maxRetries = 3;
-        $retries = 0;
-        $success = false;
-    
-        if ($connection) {
-            // Construir la consulta INSERT con todos los registros del lote
-            $values = [];
-            foreach ($batch as $fila) {
-                $params = array_values($fila);
-                $escapedValues = array_map(function ($value) {
-                    // Asegurarse de que los valores están escapados correctamente
-                    return "'" . addslashes($value) . "'";
-                }, $params);
-                $values[] = '(' . implode(', ', $escapedValues) . ')';
-            }
-    
-            // Unir todas las filas en una sola consulta
-            $query = $sql . ' ' . implode(', ', $values);
-    
-            while ($retries < $maxRetries && !$success) {
-                try {
-                    $result = odbc_exec($connection, $query);
-                    if (!$result) {
-                        throw new \Exception(odbc_errormsg($connection));
-                    }
-                    
-                    Log::info('Batch INSERT ejecutado exitosamente.');
-                    $success = true;
-                    return true;
-                } catch (\Exception $e) {
-                    $retries++;
-                    Log::warning("Error al ejecutar el INSERT: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-                    
-                    if ($retries >= $maxRetries) {
-                        Log::error("Error después de {$retries} intentos: " . $e->getMessage());
-                        return false;
-                    }
-                    
-                    sleep(10); // Esperar 1 segundo antes de reintentar
-                }
-            }
-        } else {
-            Log::error("No se pudo conectar a la base de datos ODBC: " . odbc_errormsg());
-            return false;
-        }
-    }
-    
 
     public function consulta($connection, $sql)
     {
@@ -208,53 +137,116 @@ class migrarDatosOdbc extends Command
         $retries = 0;
         $success = false;
         $results = [];
-    
+
         while ($retries < $maxRetries && !$success) {
-            try {  
-                if ($connection) {
-                    Log::info("connection: ".$connection."\n" );
-                    Log::info('Conexión exitosa a la base de datos ODBC.');
-                    // Ejecutar la consulta recibida como parámetro
-                    $result = odbc_exec($connection, $sql);
-                    
-                    if (!$result) {
-                        throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
-                    } else {
-                        while ($row = odbc_fetch_array($result)) {
-                            $results[] = $row;
-                        }
-                        odbc_free_result($result);
-                        $success = true;
-                    }
+            try {
+                //Log::info('Conexión existente a la base de datos ODBC.');
+
+                $result = odbc_exec($connection, $sql);
+
+                if (!$result) {
+                    throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
                 } else {
-                    throw new \Exception("No se pudo conectar a la base de datos ODBC: " . odbc_errormsg());
+                    while ($row = odbc_fetch_array($result)) {
+                        
+                        if (isset($row['LINE_TOTAL']) && !is_null($row)) {
+                            // Log el valor original
+                            //Log::info('Valor original de LINE_TOTAL:', ['valor' => $row]);
+                    
+                            // Convertir a float para asegurar el tipo numérico
+                            $lineTotal = (float)$row['LINE_TOTAL'];
+                    
+                            // Formatear a 4 decimales si tiene 4 o menos
+                            $decimalPlaces = strlen(substr(strrchr($lineTotal, "."), 1));
+                            if ($decimalPlaces <= 6) {
+                                $row['LINE_TOTAL'] = number_format($lineTotal, 6, '.', '');
+                            } else {
+                                $row['LINE_TOTAL'] = $lineTotal; // Mantener el valor original si tiene más de 4 decimales
+                            }
+                    
+                            // Log el valor después del formato
+                          //  Log::info('Valor formateado de LINE_TOTAL:', ['valor' => $row]);
+                        }
+                        $results[] = $row;
+                    }
+                    odbc_free_result($result);
+                    $success = true;
                 }
-            } catch (\Exception $e) { 
-                Log::warning($connection."\n" );
-                $retries++;
+            } catch (\Exception $e) {
                 Log::warning("Excepción capturada: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-                
+
+                $retries++;
                 if ($retries >= $maxRetries) {
                     Log::error("Error después de {$retries} intentos: " . $e->getMessage());
                     return [];
                 }
-                
-                sleep(10); // Esperar 1 segundo antes de reintentar
+
+                sleep(1);
             }
         }
-    
+        //Log::info( $results);
         return $results;
     }
+
+    public function insertarBatch($connection, $sql, $batch)
+    {
+        $maxRetries = 3;
+        $retries = 0;
+        $success = false;
     
-    private function cerrarConexion($dbService)
-{
-    $connection = $dbService->getConnection(); // Obtiene el recurso de conexión desde el servicio
-    if ($connection) {
-        odbc_close($connection); // Cierra la conexión ODBC
-        Log::info('Conexión ODBC cerrada.');
+        if ($connection) {
+            $values = [];
+            foreach ($batch as $fila) {
+                $escapedValues = array_map(function ($value) {
+                    if (is_null($value)) {
+                        return 'NULL';
+                    } elseif (is_string($value)) {
+                        return "'" . addslashes($value) . "'";
+                    } else {
+                        return $value;
+                    }
+                }, array_values($fila));
+                $values[] = '(' . implode(', ', $escapedValues) . ')';
+            }
+    
+            $query = $sql . ' ' . implode(', ', $values);
+    
+            while ($retries < $maxRetries && !$success) {
+                try {
+                   
+                    $result = odbc_exec($connection, $query);
+                    if (!$result) {
+                        throw new \Exception(odbc_errormsg($connection));
+                    }
+    
+                  
+                    $success = true;
+                    return true;
+                } catch (\Exception $e) {
+                    $retries++;
+                    Log::warning("Error al ejecutar el INSERT: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
+    
+                    if ($retries >= $maxRetries) {
+                        Log::error("Error después de {$retries} intentos: " . $e->getMessage());
+                        return false;
+                    }
+    
+                    sleep(1);
+                }
+            }
+        } else {
+            Log::error("No se pudo conectar a la base de datos ODBC.");
+            return false;
+        }
     }
-}
+    
 
-
-
+    private function cerrarConexion($dbService)
+    {
+        $connection = $dbService->getConnection(); // Obtiene el recurso de conexión desde el servicio
+        if ($connection) {
+            odbc_close($connection); // Cierra la conexión ODBC
+            Log::info('Conexión ODBC cerrada.');
+        }
+    }
 }
