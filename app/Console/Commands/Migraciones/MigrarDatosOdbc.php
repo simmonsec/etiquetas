@@ -59,15 +59,21 @@ class migrarDatosOdbc extends Command
         // Procesar datos en lotes con paginación
         $batchSize = 10000;
         $offset = 0;
+        $resultado = [];
         // Ejecuta la consulta para obtener la cantidad
-        $resultado = $this->consulta($connection4D, "SELECT COUNT(*) AS cantidad FROM INVT_Producto_Movimientos WHERE 
-                                  CONFIRM=TRUE AND 
-                                   TRANS_DATE > '2024/01/01' AND 
-                                   TRANS_DATE < '2025/01/01'");
+        if ($q_comando) {
+            // Remplazar la lista de columnas por COUNT(*)
+            $q_comando_count = preg_replace('/SELECT\s+.*\s+FROM/s', 'SELECT COUNT(*) FROM', $q_comando);
 
-        if (!empty($resultado)) {
-            $primeraFila = $resultado[0];
-            $cantidad = $primeraFila['cantidad'];
+            // Eliminar ORDER BY si existe
+            $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
+
+            $resultado = $this->consulta($connection4D, $q_comando_count);
+            
+        }
+
+        if (!empty($resultado)) { 
+            $cantidad = $resultado[0]["<expression>"];
             print_r("Cantidad de registros: " . $cantidad . "\n");
         } else {
             print_r("No se obtuvieron resultados.");
@@ -77,9 +83,9 @@ class migrarDatosOdbc extends Command
 
         try {
             while (true) {
-                 // Medir el tiempo de inicio
-                 $startTime = microtime(true);
-    
+                // Medir el tiempo de inicio
+                $startTime = microtime(true);
+
                 $q_comandoPaginado = $q_comando . " LIMIT $batchSize OFFSET $offset";
                 $datos = $this->consulta($connection4D, $q_comandoPaginado);
 
@@ -97,21 +103,21 @@ class migrarDatosOdbc extends Command
                     if ($batchSize >= $restante) {
                         $batchSize = $restante;
                     }
-
+                    print_r("Insertados: " . $offset . " DE $cantidad" . " Restan: " . $restante . "\n");
+                    Log::info("Insertados: {$offset} DE {$cantidad} Restan: {$restante}");
                     if ($restante < 1) {
                         break;
                     }
 
-                    print_r("Insertados: " . $offset . " DE $cantidad" . " Restan: " . $restante . "\n");
-                    Log::info("Insertados: {$offset} DE {$cantidad} Restan: {$restante}");
+                   
                 } else {
                     break;
                 }
-                  // Medir el tiempo de fin
-                  $endTime = microtime(true);
-                  $elapsedTime = $endTime - $startTime;
-  
-                  Log::info('Batch INSERT ejecutado exitosamente en ' . number_format($elapsedTime, 4) . ' segundos.');
+                // Medir el tiempo de fin
+                $endTime = microtime(true);
+                $elapsedTime = $endTime - $startTime;
+
+                Log::info('Batch INSERT ejecutado exitosamente en ' . number_format($elapsedTime, 4) . ' segundos.');
             }
 
             DB::commit();
@@ -148,14 +154,14 @@ class migrarDatosOdbc extends Command
                     throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
                 } else {
                     while ($row = odbc_fetch_array($result)) {
-                        
+
                         if (isset($row['LINE_TOTAL']) && !is_null($row)) {
                             // Log el valor original
                             //Log::info('Valor original de LINE_TOTAL:', ['valor' => $row]);
-                    
+
                             // Convertir a float para asegurar el tipo numérico
-                            $lineTotal = (float)$row['LINE_TOTAL'];
-                    
+                            $lineTotal = (float) $row['LINE_TOTAL'];
+
                             // Formatear a 4 decimales si tiene 4 o menos
                             $decimalPlaces = strlen(substr(strrchr($lineTotal, "."), 1));
                             if ($decimalPlaces <= 6) {
@@ -163,9 +169,9 @@ class migrarDatosOdbc extends Command
                             } else {
                                 $row['LINE_TOTAL'] = $lineTotal; // Mantener el valor original si tiene más de 4 decimales
                             }
-                    
+
                             // Log el valor después del formato
-                          //  Log::info('Valor formateado de LINE_TOTAL:', ['valor' => $row]);
+                            //  Log::info('Valor formateado de LINE_TOTAL:', ['valor' => $row]);
                         }
                         $results[] = $row;
                     }
@@ -193,7 +199,7 @@ class migrarDatosOdbc extends Command
         $maxRetries = 3;
         $retries = 0;
         $success = false;
-    
+
         if ($connection) {
             $values = [];
             foreach ($batch as $fila) {
@@ -208,29 +214,29 @@ class migrarDatosOdbc extends Command
                 }, array_values($fila));
                 $values[] = '(' . implode(', ', $escapedValues) . ')';
             }
-    
+
             $query = $sql . ' ' . implode(', ', $values);
-    
+
             while ($retries < $maxRetries && !$success) {
                 try {
-                   
+
                     $result = odbc_exec($connection, $query);
                     if (!$result) {
                         throw new \Exception(odbc_errormsg($connection));
                     }
-    
-                  
+
+
                     $success = true;
                     return true;
                 } catch (\Exception $e) {
                     $retries++;
                     Log::warning("Error al ejecutar el INSERT: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-    
+
                     if ($retries >= $maxRetries) {
                         Log::error("Error después de {$retries} intentos: " . $e->getMessage());
                         return false;
                     }
-    
+
                     sleep(1);
                 }
             }
@@ -239,7 +245,7 @@ class migrarDatosOdbc extends Command
             return false;
         }
     }
-    
+
 
     private function cerrarConexion($dbService)
     {

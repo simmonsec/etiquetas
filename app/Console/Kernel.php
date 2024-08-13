@@ -23,7 +23,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('inventario:terceros')->everyMinute(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
+        $schedule->command('inventario:terceros')->everyFifteenMinutes(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
         $schedule->command('migrar:odbc')->hourly();//correr cada hora
     }
 
