@@ -25,6 +25,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('inventario:terceros')->everyFifteenMinutes(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
         $schedule->command('migrar:odbc')->hourly();//correr cada hora
+        $schedule->command('sincronizar:produccionEventos')->everyMinute();
     }
 
     /**
