@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('Simmons01.prod_app_produccionEvento_tb', function (Blueprint $table) {
+        Schema::create('Simmons01.prod_app_produccionEventoCola_tb', function (Blueprint $table) {
             $table->string('preveID')->nullable();
+            $table->integer('preve_secuencia')->nullable();
+            $table->integer('preve_inicio_fecha_ref')->nullable();
+            $table->integer('preve_inicio_hora_ref')->nullable();
             $table->string('preve_colID')->nullable();
             $table->string('preve_eprtID')->nullable();
             $table->string('preve_secID')->nullable();
-            $table->string('preve_referencia')->nullable();
-            $table->date('preve_inicio_fecha')->nullable();
+            $table->date('preve_inicio_fecha')->nullable(); 
             $table->time('preve_inicio_hora')->nullable();
-            $table->string('preve_estado')->nullable();
-            $table->string('preve_creado_por')->nullable();
+            $table->time('preve_fin_hora')->nullable();
+            $table->integer('preve_duracion')->nullable();
             $table->timestamps(); // Esto añadirá created_at y updated_at
         });
     }
@@ -30,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('Simmons01.prod_app_produccionEvento_tb');
+        Schema::dropIfExists('Simmons01.prod_app_produccionEventoCola_tb');
     }
 };

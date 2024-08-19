@@ -24,6 +24,8 @@ class ProduccionEventos extends Model
     // Los atributos que se pueden asignar en masa.
     protected $fillable = [
         'preveID',
+        'preve_inicio_fecha_ref',
+        'preve_inicio_hora_ref',
         'preve_colID',
         'preve_eprtID',
         'preve_secID',

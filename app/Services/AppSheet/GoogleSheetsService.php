@@ -5,6 +5,7 @@ use App\Models\ProduccionEventos;
 use Google_Client;
 use Google_Service_Sheets;
 use Google_Service_Sheets_BatchUpdateValuesRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class GoogleSheetsService
@@ -14,6 +15,7 @@ class GoogleSheetsService
     protected $spreadsheetId;
     protected $range;
 
+    protected $registrosActualizar = [];
     public function __construct()
     {
         $this->client = new Google_Client();
@@ -56,7 +58,6 @@ class GoogleSheetsService
 
                 // Filtrar solo las filas que tienen preve_estado = 'N'
                 if (isset($data['preve_estado']) && $data['preve_estado'] === 'N') {
-
                     // Crear una instancia del modelo y asignar valores
                     $evento = new ProduccionEventos();
                     $evento->preveID = $data['preveID'] ?? 0;
@@ -79,7 +80,7 @@ class GoogleSheetsService
                         $evento->preve_inicio_hora = null;
                     }
 
-                    $evento->preve_estado = $data['preve_estado'] ?? null;
+                    //$evento->preve_estado = $data['preve_estado'] ?? null;
                     $evento->preve_creado_por = $data['preve_creado_por'] ?? null;
 
                     // Verifica y convierte created_at
@@ -95,6 +96,27 @@ class GoogleSheetsService
                     } else {
                         $evento->updated_at = null;
                     }
+                   
+                    try {
+                        // Convierte la fecha al formato deseado y luego a un valor numérico
+                        $fechaFormateada = Carbon::createFromFormat('d/m/Y', $data['preve_inicio_fecha'])->format('Ymd');
+                        // Convierte a un valor numérico
+                        $fechaNumerica = (int) $fechaFormateada;
+                        $evento->preve_inicio_fecha_ref = $fechaNumerica;
+                      
+                        // Convierte la hora al formato deseado y luego a un valor numérico
+                        $horaFormateada = Carbon::createFromFormat('H:i:s', $data['preve_inicio_hora'])->format('Hi');
+                        // Convierte a un valor numérico
+                        $horaNumerica = (int) $horaFormateada;
+                        $evento->preve_inicio_hora_ref = $horaNumerica;
+
+                    } catch (\Exception $e) {
+                        // Manejar el error, por ejemplo, registrarlo o lanzar una excepción
+                         Log::error('Fecha u hora en formato incorrecto: ' . $e->getMessage());
+                        throw new \InvalidArgumentException('Formato de fecha u hora incorrecto');
+                    }
+                    
+                    $this->registrosActualizar[] = $evento->preveID;
 
                     // Guardar el modelo en la base de datos
                     $evento->save();
@@ -127,8 +149,9 @@ class GoogleSheetsService
             $headers = array_shift($values);
 
             // Obtener los preveID ya almacenados en la base de datos
-            $storedPreveIDs = ProduccionEventos::pluck('preveID')->toArray();
-
+            $storedPreveIDs = ProduccionEventos::whereIn('preveID', $this->registrosActualizar)->pluck('preveID')->toArray();
+            print_r($storedPreveIDs);
+            print_r("\n");
             $updatedValues = [];
             foreach ($values as $index => $row) {
                 // Mapear los datos a un array asociativo usando las cabeceras
