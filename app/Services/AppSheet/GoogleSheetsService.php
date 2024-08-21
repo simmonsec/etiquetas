@@ -5,9 +5,7 @@ use App\Models\ProduccionEventos;
 use Google_Client;
 use Google_Service_Sheets;
 use Google_Service_Sheets_BatchUpdateValuesRequest;
-use Google_Service_Sheets_ValueRange;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class GoogleSheetsService
@@ -98,14 +96,14 @@ class GoogleSheetsService
                     } else {
                         $evento->updated_at = null;
                     }
-
+                   
                     try {
                         // Convierte la fecha al formato deseado y luego a un valor numérico
                         $fechaFormateada = Carbon::createFromFormat('d/m/Y', $data['preve_inicio_fecha'])->format('Ymd');
                         // Convierte a un valor numérico
                         $fechaNumerica = (int) $fechaFormateada;
                         $evento->preve_inicio_fecha_ref = $fechaNumerica;
-
+                      
                         // Convierte la hora al formato deseado y luego a un valor numérico
                         $horaFormateada = Carbon::createFromFormat('H:i:s', $data['preve_inicio_hora'])->format('Hi');
                         // Convierte a un valor numérico
@@ -114,10 +112,10 @@ class GoogleSheetsService
 
                     } catch (\Exception $e) {
                         // Manejar el error, por ejemplo, registrarlo o lanzar una excepción
-                        Log::error('Fecha u hora en formato incorrecto: ' . $e->getMessage());
+                         Log::error('Fecha u hora en formato incorrecto: ' . $e->getMessage());
                         throw new \InvalidArgumentException('Formato de fecha u hora incorrecto');
                     }
-
+                    
                     $this->registrosActualizar[] = $evento->preveID;
 
                     // Guardar el modelo en la base de datos
@@ -203,83 +201,6 @@ class GoogleSheetsService
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
         }
     }
-
-    public function fetchAndInsert()
-    {
-        // ID de la hoja de cálculo
-        $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID'); // Reemplaza con tu ID de hoja de cálculo
-        $sheetName = 'PRODUCCION_EVENTOS_COLABORADORES';
-
-        // Obtener los datos de la base de datos solo con estado "N"
-        $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb')
-            ->where('prevc_estado', 'N')
-            ->get();
-
-        if ($events->isEmpty()) {
-            Log::info('No se encontraron registros con estado "N" para migrar.');
-            return;
-        }
-
-        // Preparar los datos para la hoja de cálculo
-        $values = [];
-        foreach ($events as $event) {
-            $values[] = [
-                $event->prevcID,
-                $event->prevc_preveID,
-                $event->prevc_inicio_fecha_ref,
-                $event->prevc_inicio_hora_ref,
-                $event->prevc_colID,
-                $event->prevc_eprtID,
-                $event->prevc_secID,
-                Carbon::parse($event->prevc_inicio_fecha)->format('d/m/Y'),
-                Carbon::parse($event->prevc_inicio_hora)->format('H:i:s'),
-                Carbon::parse($event->prevc_fin_hora)->format('H:i:s'),
-                $event->prevc_duracion,
-                Carbon::parse($event->created_at)->format('d/m/Y H:i:s'),
-                Carbon::parse($event->updated_at)->format('d/m/Y H:i:s'),
-                'TRUE', // Puedes modificar este campo según tus necesidades
-            ];
-        }
-
-        // Obtener la última fila con datos en la hoja de cálculo
-        try {
-            $response = $this->service->spreadsheets_values->get($spreadsheetId, $sheetName . '!A:A');
-            $lastRow = count($response->getValues()) + 1; // La siguiente fila disponible
-        } catch (\Google_Service_Exception $e) {
-            $this->error('Error al obtener la última fila: ' . $e->getMessage());
-            return;
-        }
-
-        // Establecer el rango para insertar los datos en la siguiente fila disponible
-        $range = $sheetName . '!A' . $lastRow . ':N';
-
-        // Insertar los datos en la hoja de cálculo
-        $body = new Google_Service_Sheets_ValueRange([
-            'values' => $values
-        ]);
-
-        $params = [
-            'valueInputOption' => 'RAW'
-        ];
-
-        try {
-            $this->service->spreadsheets_values->update($spreadsheetId, $range, $body, $params);
-            Log::info('Datos migrados con éxito a Google Sheets.');
-
-            // Actualizar el estado de los registros migrados a "A"
-            DB::table('Simmons01.prod_app_produccionEventoColab_tb')
-                ->where('prevc_estado', 'N')
-                ->update(['prevc_estado' => 'A']);
-
-            Log::info('Estado de los registros actualizados a "A".');
-        } catch (\Google_Service_Exception $e) {
-            $this->error('Error de la API de Google Sheets: ' . $e->getMessage());
-        } catch (\Exception $e) {
-            $this->error('Ocurrió un error inesperado: ' . $e->getMessage());
-        }
-    }
-
-
 
 
 

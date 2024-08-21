@@ -51,9 +51,6 @@ class SyncGoogleSheetsData extends Command
 
         // Información sobre la finalización del proceso
         Log::info('Proceso de sincronización y actualización finalizado.');
-        Log::info('Iniciando actualización de la hoja electronica...');
-        $this->googleSheetsService->fetchAndInsert();
-        Log::info('Finalizando actualización de la hoja electronica ...');
         Log::info("--------------------------Fin Sincronización Google Sheet-------------------------------------------");
     }
 }
