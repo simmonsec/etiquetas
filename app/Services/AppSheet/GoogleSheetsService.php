@@ -211,10 +211,10 @@ class GoogleSheetsService
         $sheetName = 'PRODUCCION_EVENTOS_COLABORADORES';
 
         // Obtener los datos de la base de datos solo con estado "N"
-        $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb') 
+        $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb')
+            ->where('prevc_estado', 'N')
             ->where('trigger_processed', true)
             ->get();
-            
 
         if ($events->isEmpty()) {
             Log::info('No se encontraron registros con estado "N" para migrar.');
