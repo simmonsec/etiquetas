@@ -46,9 +46,9 @@ class InventarioTerceros extends Command
         // Configurar cliente de Google
         $cliente = new \Google\Client();
         $cliente->setScopes([\Google\Service\Gmail::MAIL_GOOGLE_COM]);
-        $cliente->setApplicationName(env('GOOGLE_APLICATION_NAME_INFOR'));
-        $cliente->setClientId(env('GOOGLE_CLIENT_ID_INFO'));
-        $cliente->setClientSecret(env('GOOGLE_CLIENT_SECRET_INFO'));
+        $cliente->setApplicationName(env('GOOGLE_APLICATION_NAME'));
+        $cliente->setClientId(env('GOOGLE_CLIENT_ID'));
+        $cliente->setClientSecret(env('GOOGLE_CLIENT_SECRET'));
         $cliente->setAccessType('offline');
         $cliente->setRedirectUri(env('GOOGLE_REDIRECT_URI'));
         return $cliente;
