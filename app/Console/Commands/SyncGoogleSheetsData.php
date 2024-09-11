@@ -49,11 +49,7 @@ class SyncGoogleSheetsData extends Command
         // Confirmación de la actualización completa
         Log::info('Actualización completa. Los ID en la base de datos de AppSheet han sido actualizados exitosamente.');
 
-        // Información sobre la finalización del proceso
-        Log::info('Proceso de sincronización y actualización finalizado.');
-        Log::info('Iniciando actualización de la hoja electronica...');
-        $this->googleSheetsService->fetchAndInsert();
-        Log::info('Finalizando actualización de la hoja electronica ...');
+         
         Log::info("--------------------------Fin Sincronización Google Sheet-------------------------------------------");
     }
 }

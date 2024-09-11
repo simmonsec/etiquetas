@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Illuminate\Support\Facades\Artisan;
 
 class Kernel extends ConsoleKernel
 {
@@ -25,7 +26,14 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('inventario:terceros')->everyFifteenMinutes(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
         $schedule->command('migrar:odbc')->hourly();//correr cada hora
-        $schedule->command('sincronizar:produccionEventos')->everyMinute();
+        $schedule->command('sincronizar:produccionEventos')
+        ->everyMinute()
+        ->withoutOverlapping()
+        ->then(function () {
+            // Se ejecuta solo después del primer comando
+            Artisan::call('sincronizarpotgres:produccionEventos');
+        });
+    
     }
 
     /**
