@@ -40,10 +40,11 @@ class ActualizarHojaElectronicaService
     {
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'PRODUCCION_EVENTOS_COLABORADORES';
-
+        $fiveMinutesAgo = Carbon::now()->subMinutes(5);
         $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb')
             ->where('prevc_estado', 'N')
             ->where('trigger_processed', true)
+            ->where('updated_at', '<=', $fiveMinutesAgo) 
             ->get();
 
         if ($events->isEmpty()) {
@@ -143,7 +144,7 @@ class ActualizarHojaElectronicaService
             ];
         }
 
-        Log::info(print_r($values, true));
+        //Log::info(print_r($values, true));
 
         // Insertar los datos en la hoja
         try {

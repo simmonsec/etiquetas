@@ -26,14 +26,29 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('inventario:terceros')->everyFifteenMinutes(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
         $schedule->command('migrar:odbc')->hourly();//correr cada hora
+        // Primer comando que se ejecuta cada minuto
         $schedule->command('sincronizar:produccionEventos')
         ->everyMinute()
         ->withoutOverlapping()
-        ->then(function () {
-            // Se ejecuta solo después del primer comando
-            Artisan::call('sincronizarpotgres:produccionEventos');
+        ->after(function () {
+            // Ejecutar el segundo comando con un retraso de 3 minutos
+            $this->dispatchDelayedCommand('sincronizarpotgres:produccionEventos', 3);
         });
     
+    }
+
+    /**
+     * Despacha un comando con un retraso.
+     *
+     * @param string $command
+     * @param int $delayMinutes
+     */
+    protected function dispatchDelayedCommand($command, $delayMinutes)
+    {
+        // Programar un comando para que se ejecute con un retraso específico
+        dispatch(function () use ($command) {
+            Artisan::call($command);
+        })->delay(now()->addMinutes($delayMinutes));
     }
 
     /**
