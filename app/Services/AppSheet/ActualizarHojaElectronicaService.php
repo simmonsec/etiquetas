@@ -41,9 +41,10 @@ class ActualizarHojaElectronicaService
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'PRODUCCION_EVENTOS_COLABORADORES';
         $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb')
-            ->where('prevc_estado', 'N')
-            ->where('trigger_processed', true)
-            ->get();
+        ->where('prevc_estado', 'N')
+        ->where('trigger_processed', true)
+        ->where(DB::raw('created_at + INTERVAL \'3 minutes\''), '<', DB::raw('NOW()'))
+        ->get();
 
         if ($events->isEmpty()) {
             Log::info('No se encontraron registros con estado "N" para migrar.');

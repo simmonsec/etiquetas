@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 class GoogleSheets extends Command
 {
     protected $signature = 'google:sheet';
-    protected $description = 'Proceso para almacenar datos en los archivos de Google Sheets';
+    protected $description = 'Proceso para almacenar datos en los archivos de Google Sheets ,quedaron en pruebas....';
 
     public function __construct()
     {
