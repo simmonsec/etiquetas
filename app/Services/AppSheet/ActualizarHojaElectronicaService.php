@@ -118,27 +118,57 @@ class ActualizarHojaElectronicaService
 
         // Obtener los datos
         $novedades = DB::select('
-            SELECT MAX(T1.prevc_inicio_fecha) AS nov_prevc_inicio_fecha, T2."colID" as "nov_colID", 100 AS "nov_eprtID"
+        (
+            -- Consulta para identificar colaboradores que han iniciado jornada pero no han registrado el cierre de jornada.
+            -- Incluye aquellos cuyo evento de cierre de jornada (tipo 100) no ha sido registrado en la fecha actual.
+            SELECT MAX(T1.prevc_inicio_fecha) AS nov_prevc_inicio_fecha, 
+                   T2."colID" as "nov_colID", 
+                   100 AS "nov_eprtID", 
+                   \'No se ha registrado el evento de cierre de jornada para este colaborador en la fecha especificada.\' as comentario
             FROM "Simmons01"."prod_app_produccionEventoColab_tb" T1  
-            INNER JOIN "Simmons01".prod_app_colaboradores_tb T2 ON T1."prevc_colID" = T2."colID"
+            INNER JOIN "Simmons01"."prod_app_colaboradores_tb" T2 ON T1."prevc_colID" = T2."colID"
             INNER JOIN "Simmons01"."prod_app_eventosTipo_tb" T3 ON T1."prevc_eprtID" = T3."eprtID"
-            WHERE CONCAT(prevc_inicio_fecha_ref, "prevc_colID") NOT IN (
-                SELECT CONCAT(prevc_inicio_fecha_ref, "prevc_colID")  
+            WHERE CONCAT(T1.prevc_inicio_fecha_ref::text, T1."prevc_colID"::text) NOT IN (
+                -- Subconsulta que identifica las combinaciones de fecha y colaborador con un evento de tipo 100 (Cierre de Jornada).
+                SELECT CONCAT(prevc_inicio_fecha_ref::text, "prevc_colID"::text)  
                 FROM "Simmons01"."prod_app_produccionEventoColab_tb"   
-                WHERE "prevc_eprtID" IN (100))
-            AND prevc_inicio_fecha < CURRENT_DATE 
+                WHERE "prevc_eprtID" IN (100)
+            )
+            AND T1.prevc_inicio_fecha < CURRENT_DATE 
             AND T1."prevc_eprtID" <> 19
             GROUP BY T2."colID"
-        ');
+        )
+        UNION
+        (
+            -- Consulta para identificar colaboradores que no han registrado ningún evento en la fecha actual.
+            -- Incluye un mensaje indicando que no se han registrado eventos para estos colaboradores.
+            SELECT CURRENT_DATE AS nov_prevc_inicio_fecha, 
+                   "colID" as "nov_colID", 
+                   1 AS "nov_eprtID", 
+                   \'El colaborador no ha registrado ningún evento para la fecha actual.\' as comentario
+            FROM "Simmons01"."prod_app_colaboradores_tb" t1
+            WHERE NOT EXISTS (
+                -- Subconsulta que verifica la ausencia de eventos registrados para el colaborador en la fecha actual.
+                SELECT 1 
+                FROM "Simmons01"."prod_app_produccionEventoColab_tb" t2 
+                WHERE t1."colID" = t2."prevc_colID" 
+                AND t2."prevc_inicio_fecha" = CURRENT_DATE
+            )
+            AND t1.col_estado = \'A\'
+        )
+    ');
+    
 
-        $comentario = "Falta el Cierre de Jornada";
+    
+
+        //$comentario = "Falta el Cierre de Jornada";
         $values = [];
         foreach ($novedades as $index => $novedad) {
             $values[$index] = [
                 Carbon::parse($novedad->nov_prevc_inicio_fecha)->format('d/m/Y'),
                 $novedad->nov_colID,
                 $novedad->nov_eprtID,
-                $comentario,
+                $novedad->comentario,
                 \Carbon\Carbon::now()->format('d/m/Y H:i:s')
             ];
         }
