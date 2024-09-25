@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('Simmons01.cln_app_inpd_producto_tb', function (Blueprint $table) {
+        Schema::create('Simmons01.cln_app_producto_tb', function (Blueprint $table) {
             $table->string('inpdID')->primary();
             $table->text('inpd_descripcion');
             $table->string('inpd_categoria');
@@ -24,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('cln_app_inpd_producto_tb');
+        Schema::dropIfExists('cln_app_producto_tb');
     }
 };
