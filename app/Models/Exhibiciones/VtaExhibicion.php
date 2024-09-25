@@ -9,6 +9,6 @@ class VtaExhibicion extends Model
     protected $primaryKey = 'cveaID';
     protected $fillable = [
         'cveaID', 'cvea_clnID', 'cvea_cltlID', 'cvea_cvtpID', 'cvea_clvtID', 
-        'cvea_carasVacias', 'cvea_ubicacion', 'cvea_foto1', 'cvea_foto2', 'cvea_foto3', 'cvea_foto4', 'cvea_localizacion'
+        'cvea_carasVacias', 'cvea_ubicacion', 'cvea_foto1', 'cvea_foto2', 'cvea_foto3', 'cvea_foto4', 'cvea_geolocalizacion'
     ];
 }

@@ -81,7 +81,7 @@ class AppSheetPostgresService
                         $clienteVisita->clvt_nota = $dataClienteVisita['clvt_nota'] ?? null;
                         $clienteVisita->clvt_estado = $dataClienteVisita['clvt_estado'] ?? null;
                         $clienteVisita->clvt_creado_por = $dataClienteVisita['clvt_creado_por'] ?? null;
-                        $clienteVisita->clvt_ubicacion = $dataClienteVisita['clvt_ubicacion'] ?? null;
+                        $clienteVisita->clvt_geolocalizacion = $dataClienteVisita['clvt_geolocalizacion'] ?? null;
 
 
                         // Verifica y convierte clvt_fecha
@@ -184,7 +184,7 @@ class AppSheetPostgresService
                         $VtaExhibicion->cvea_foto2 = $dataExhibicion['cvea_foto2'] ?? null;
                         $VtaExhibicion->cvea_foto3 = $dataExhibicion['cvea_foto3'] ?? null;
                         $VtaExhibicion->cvea_foto4 = $dataExhibicion['cvea_foto4'] ?? null;
-                        $VtaExhibicion->cvea_localizacion = $dataExhibicion['cvea_localizacion'] ?? null;
+                        $VtaExhibicion->cvea_geolocalizacion = $dataExhibicion['cvea_geolocalizacion'] ?? null;
 
                         // Verifica y convierte created_at
                         if (!empty($dataExhibicion['created_at'])) {

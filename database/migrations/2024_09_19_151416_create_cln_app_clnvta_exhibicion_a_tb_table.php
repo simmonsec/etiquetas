@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('cvea_foto2')->nullable();
             $table->string('cvea_foto3')->nullable();
             $table->string('cvea_foto4')->nullable();
-            $table->string('cvea_localizacion');
+            $table->string('cvea_geolocalizacion');
             $table->timestamps();
         });
     }

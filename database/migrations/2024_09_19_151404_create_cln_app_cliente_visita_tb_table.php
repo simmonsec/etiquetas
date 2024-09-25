@@ -21,7 +21,7 @@ return new class extends Migration
             $table->char('clvt_estado', 1);
             $table->char('clvt_estado_bd', 1);
             $table->string('clvt_creado_por');
-            $table->string('clvt_ubicacion');
+            $table->string('clvt_geolocalizacion');
             $table->timestamps();
         });
     }
