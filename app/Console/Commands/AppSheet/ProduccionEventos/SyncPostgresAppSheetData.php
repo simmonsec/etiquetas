@@ -1,19 +1,19 @@
 <?php
-namespace App\Console\Commands;
+namespace App\Console\Commands\AppSheet\ProduccionEventos;
 
 use Illuminate\Console\Command;
-use App\Services\AppSheet\ActualizarHojaElectronicaService;
+use App\Services\AppSheet\ProduccionEventos\PostgresAppSheetService;
 use Illuminate\Support\Facades\Log;
-class SyncPostgresGoogleSheetsData extends Command
+class SyncPostgresAppSheetData extends Command
 {
-    protected $signature = 'sincronizarpotgres:produccionEventos';
+    protected $signature = 'syncPostgresAppSheet:produccionEventos';
 
-    protected $description = ' ';
+    protected $description = 'Este proceso actualiza las hojas electronicas de appsheet para la app de produccion. las tablas que actuaiza son los eventos colaborador y gestiones de produccion ';
 
 
     protected $actualizarHojaElectronica;
 
-    public function __construct(ActualizarHojaElectronicaService $actualizarHojaElectronica)
+    public function __construct(PostgresAppSheetService $actualizarHojaElectronica)
     {
         parent::__construct();
         $this->actualizarHojaElectronica = $actualizarHojaElectronica;
@@ -39,7 +39,7 @@ class SyncPostgresGoogleSheetsData extends Command
 
             Log::info('Actualizando estados actuales de colaborador...');
             $this->actualizarHojaElectronica->uptColaboradorEstadoAct(); // Actualizar el estado de colaborador, sección, fecha y hora
-            Log::info('Actualizar estados actuales de colaborador...');
+            Log::info('Actualizar estados actuales de colaborador FIN');
 
         } catch (\Exception $e) {
             Log::error('Ocurrió un error durante la sincronización: ' . $e->getMessage());

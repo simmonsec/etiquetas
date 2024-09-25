@@ -27,12 +27,20 @@ class Kernel extends ConsoleKernel
         $schedule->command('inventario:terceros')->everyFifteenMinutes(); //everyMinute//everyFifteenMinutes,everyTwentySeconds
         $schedule->command('migrar:odbc')->hourly();//correr cada hora
         // Primer comando que se ejecuta cada minuto
-        $schedule->command('sincronizar:produccionEventos')
+        $schedule->command('syncAppSheetPostgres:produccionEventos')
         ->everyMinute()
         ->withoutOverlapping()
         ->after(function () {
             // Ejecutar el segundo comando con un retraso de 3 minutos
-            $this->dispatchDelayedCommand('sincronizarpotgres:produccionEventos', 3);
+            $this->dispatchDelayedCommand('syncPostgresAppSheet:produccionEventos', 3);
+        });
+
+        $schedule->command('syncAppSheetPostgres:exhibicionVisita')
+        ->everyMinute()
+        ->withoutOverlapping()
+        ->after(function () {
+            // Ejecutar el segundo comando con un retraso de 3 minutos
+            $this->dispatchDelayedCommand('mantenimientoAppSheetPostgresData:exhibicionVisita', delayMinutes: 15);
         });
     
     }

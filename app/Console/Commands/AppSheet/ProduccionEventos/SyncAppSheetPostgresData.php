@@ -1,12 +1,12 @@
 <?php
-namespace App\Console\Commands;
+namespace App\Console\Commands\AppSheet\ProduccionEventos;
 
 use Illuminate\Console\Command;
-use App\Services\AppSheet\GoogleSheetsService;
+use App\Services\AppSheet\ProduccionEventos\AppSheetPostgresService;
 use Illuminate\Support\Facades\Log;
-class SyncGoogleSheetsData extends Command
+class SyncAppSheetPostgresData extends Command
 {
-    protected $signature = 'sincronizar:produccionEventos';
+    protected $signature = 'syncAppSheetPostgres:produccionEventos';
 
     protected $description = 'Este comando sincroniza datos entre Google Sheets y PostgreSQL. 
     
@@ -17,12 +17,12 @@ class SyncGoogleSheetsData extends Command
     Este proceso asegura que la información en la base de datos y en Google Sheets se mantenga consistente y actualizada sin intervención manual.';
 
 
-    protected $googleSheetsService;
+    protected $AppSheetPostgresService;
 
-    public function __construct(GoogleSheetsService $googleSheetsService)
+    public function __construct(AppSheetPostgresService $AppSheetPostgresService)
     {
         parent::__construct();
-        $this->googleSheetsService = $googleSheetsService;
+        $this->AppSheetPostgresService = $AppSheetPostgresService;
     }
 
     public function handle()
@@ -35,7 +35,7 @@ class SyncGoogleSheetsData extends Command
         Log::info('Iniciando sincronización de datos desde Google Sheets...');
 
         // Llamada al servicio para obtener y almacenar datos desde Google Sheets
-        $this->googleSheetsService->fetchAndStoreData();
+        $this->AppSheetPostgresService->fetchAndStoreData();
 
         // Confirmación de la sincronización completa
         Log::info('Sincronización completa. Los datos han sido almacenados exitosamente.');
@@ -44,7 +44,7 @@ class SyncGoogleSheetsData extends Command
         Log::info('Iniciando actualización de ID en la base de datos de AppSheet...');
 
         // Llamada al servicio para actualizar datos en AppSheet según los ID almacenados
-        $this->googleSheetsService->fetchAndUpdateData();
+        $this->AppSheetPostgresService->fetchAndUpdateData();
 
         // Confirmación de la actualización completa
         Log::info('Actualización completa. Los ID en la base de datos de AppSheet han sido actualizados exitosamente.');

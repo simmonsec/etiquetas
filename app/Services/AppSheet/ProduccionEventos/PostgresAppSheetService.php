@@ -1,5 +1,5 @@
 <?php
-namespace App\Services\AppSheet;
+namespace App\Services\AppSheet\ProduccionEventos;
 
 use Google_Client;
 use Google_Service_Sheets;
@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class ActualizarHojaElectronicaService
+class PostgresAppSheetService
 {
     protected $client;
     protected $service;
@@ -199,74 +199,87 @@ class ActualizarHojaElectronicaService
     {
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'COLABORADORES';
-
-        // Leer los datos actuales de la hoja de cálculo
-        $response = $this->service->spreadsheets_values->get($spreadsheetId, $sheetName);
-        $values = $response->getValues();
-
-        // Obtener los encabezados
-        $headers = array_shift($values);
-
-        // Convertir los datos de la hoja en un array asociativo
-        $data = [];
-        foreach ($values as $index => $row) {
-            $colID = $row[array_search('colID', $headers)]; // Obtener el colID
-            $data[$colID] = $index + 2; // Guardar el índice de la fila con colID como clave
-        }
-
-        // Obtener los datos más recientes de la base de datos
-        $datos = DB::select('WITH ranked_events AS (
-        SELECT
-            T1."prevc_colID",
-            T1."prevc_eprtID" as col_evento_ref,
-            T1.prevc_inicio_fecha as col_evento_fecha_ref,
-            T1."prevc_secID" as col_ult_seccion_ref,
-            T1.prevc_inicio_hora as col_evento_hora_ref,
-            ROW_NUMBER() OVER (PARTITION BY T1."prevc_colID" ORDER BY T1.prevc_inicio_fecha DESC, T1.prevc_inicio_hora DESC) AS rn
-        FROM
-            "Simmons01"."prod_app_produccionEventoColab_tb" T1
-        INNER JOIN
-            "Simmons01"."prod_app_colaboradores_tb" T2 ON T1."prevc_colID" = T2."colID"
-        WHERE
-            T1."prevc_eprtID" NOT IN (101,102)
-    )
-    SELECT
-        "prevc_colID",
-        "col_evento_ref", 
-        col_ult_seccion_ref,
-        col_evento_fecha_ref,
-        col_evento_hora_ref
-    FROM
-        ranked_events
-    WHERE
-        rn = 1
-    ORDER BY
-        "prevc_colID"');
-
-        // Preparar los datos para la actualización
-        $dataToUpdate = [];
-        foreach ($datos as $dato) {
-            if (isset($data[$dato->prevc_colID])) {
-                $rowIndex = $data[$dato->prevc_colID];
-                $dataToUpdate[] = [
-                    'range' => $sheetName . '!F' . $rowIndex . ':J' . $rowIndex, // Ajusta el rango según sea necesario
-                    'values' => [
-                        [$dato->col_ult_seccion_ref, $dato->col_evento_ref, $dato->col_evento_fecha_ref, $dato->col_evento_hora_ref, \Carbon\Carbon::now()->format('d/m/Y H:i:s')]
-                    ]
-                ];
+        try {
+            
+            // Leer los datos actuales de la hoja de cálculo
+            $response = $this->service->spreadsheets_values->get($spreadsheetId, $sheetName);
+            $values = $response->getValues();
+    
+            // Obtener los encabezados
+            $headers = array_shift($values);
+    
+            // Convertir los datos de la hoja en un array asociativo
+            $data = [];
+            foreach ($values as $index => $row) {
+                $colID = $row[array_search('colID', $headers)]; // Obtener el colID
+                $data[$colID] = $index + 2; // Guardar el índice de la fila con colID como clave
             }
+    
+            // Obtener los datos más recientes de la base de datos
+            $datos = DB::select('WITH ranked_events AS (
+            SELECT
+                T1."prevc_colID",
+                T1."prevc_eprtID" as col_evento_ref,
+                T1.prevc_inicio_fecha as col_evento_fecha_ref,
+                T1."prevc_secID" as col_ult_seccion_ref,
+                T1.prevc_inicio_hora as col_evento_hora_ref,
+                ROW_NUMBER() OVER (PARTITION BY T1."prevc_colID" ORDER BY T1.prevc_inicio_fecha DESC, T1.prevc_inicio_hora DESC) AS rn
+            FROM
+                "Simmons01"."prod_app_produccionEventoColab_tb" T1
+            INNER JOIN
+                "Simmons01"."prod_app_colaboradores_tb" T2 ON T1."prevc_colID" = T2."colID"
+            WHERE
+                T1."prevc_eprtID" NOT IN (101,102)
+        )
+        SELECT
+            "prevc_colID",
+            "col_evento_ref", 
+            col_ult_seccion_ref,
+            col_evento_fecha_ref,
+            col_evento_hora_ref
+        FROM
+            ranked_events
+        WHERE
+            rn = 1
+        ORDER BY
+            "prevc_colID"');
+    
+            // Preparar los datos para la actualización
+            $dataToUpdate = [];
+         
+            foreach ($datos as $dato) {
+                $col_ult_seccion_ref ='';
+                if(is_null($dato->col_ult_seccion_ref)){
+                    $col_ult_seccion_ref ='SIN SECCION';
+
+                }else{
+                    $col_ult_seccion_ref = $dato->col_ult_seccion_ref;
+                }
+
+                if (isset($data[$dato->prevc_colID])) {
+                    $rowIndex = $data[$dato->prevc_colID];
+                    $dataToUpdate[] = [
+                        'range' => $sheetName . '!F' . $rowIndex . ':J' . $rowIndex, // Ajusta el rango según sea necesario
+                        'values' => [
+                            [$col_ult_seccion_ref , $dato->col_evento_ref, $dato->col_evento_fecha_ref, $dato->col_evento_hora_ref, \Carbon\Carbon::now()->format('d/m/Y H:i:s')]
+                        ]
+                    ];
+                }
+            }
+    
+            // Agrupar todas las actualizaciones en una solicitud de tipo batchUpdate
+            $batchRequest = new Google_Service_Sheets_BatchUpdateValuesRequest([
+                'data' => $dataToUpdate,
+                'valueInputOption' => 'RAW'
+            ]);
+    
+            // Enviar la solicitud a Google Sheets
+            $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $batchRequest);
+    
+            Log::info('Datos actualizados con éxito en Google Sheets.');
+        } catch (\Throwable $th) {
+            Log::info("uptColaboradorEstadoAct ----- ".$th);
         }
-
-        // Agrupar todas las actualizaciones en una solicitud de tipo batchUpdate
-        $batchRequest = new Google_Service_Sheets_BatchUpdateValuesRequest([
-            'data' => $dataToUpdate,
-            'valueInputOption' => 'RAW'
-        ]);
-
-        // Enviar la solicitud a Google Sheets
-        $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $batchRequest);
-
-        Log::info('Datos actualizados con éxito en Google Sheets.');
     }
 
 

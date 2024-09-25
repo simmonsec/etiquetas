@@ -1,5 +1,5 @@
 <?php
-namespace App\Services\AppSheet;
+namespace App\Services\AppSheet\ProduccionEventos;
 
 use App\Models\ProduccionEventos;
 use Google_Client;
@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class GoogleSheetsService
+class AppSheetPostgresService
 {
     protected $client;
     protected $service;
