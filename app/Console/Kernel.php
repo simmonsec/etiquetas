@@ -35,13 +35,8 @@ class Kernel extends ConsoleKernel
             $this->dispatchDelayedCommand('syncPostgresAppSheet:produccionEventos', 3);
         });
 
-        $schedule->command('syncAppSheetPostgres:exhibicionVisita')
-        ->everyMinute()
-        ->withoutOverlapping()
-        ->after(function () {
-            // Ejecutar el segundo comando con un retraso de 3 minutos
-            $this->dispatchDelayedCommand('mantenimientoAppSheetPostgresData:exhibicionVisita', delayMinutes: 15);
-        });
+        $schedule->command('syncAppSheetPostgres:exhibicionVisita')->everyMinute();
+        $schedule->command('mantenimientoAppSheetPostgresData:exhibicionVisita')->everyFifteenMinutes(); 
     
     }
 
