@@ -7,5 +7,5 @@ class VtaExhibicionDetalle extends Model
 {
     protected $table = 'Simmons01.cln_app_clnvtaExhibicionDetalle_a_tb';
     protected $primaryKey = 'cveadID';
-    protected $fillable = ['cveadID', 'cvead_cveaID', 'cvead_inpdID', 'cvead_cantidad','cvead_tipo'];
+    protected $fillable = ['cveadID', 'cvead_cveaID', 'cvead_inpdID', 'cvead_caras','cvead_tipo'];
 }

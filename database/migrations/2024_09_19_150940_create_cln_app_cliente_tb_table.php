@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('Simmons01.cln_app_cliente_tb', function (Blueprint $table) {
             $table->string('clnID')->primary();
             $table->string('cln_nombre');
-            $table->string('img')->nullable();
+            $table->string('cln_img')->nullable();
             $table->timestamps();
         });
     }

@@ -251,7 +251,7 @@ class AppSheetPostgresService
                         $VtaExhibicionDetalle->cveadID = $dataExhibicionDetalle['cveadID'] ?? 0;
                         $VtaExhibicionDetalle->cvead_cveaID = $dataExhibicionDetalle['cvead_cveaID'] ?? 0;
                         $VtaExhibicionDetalle->cvead_inpdID = $dataExhibicionDetalle['cvead_inpdID'] ?? 0;
-                        $VtaExhibicionDetalle->cvead_cantidad = $dataExhibicionDetalle['cvead_cantidad'] ?? 0;
+                        $VtaExhibicionDetalle->cvead_caras = $dataExhibicionDetalle['cvead_caras'] ?? 0;
                         $VtaExhibicionDetalle->cvead_tipo = $dataExhibicionDetalle['cvead_tipo'] ?? 'VENTA';
                         // Guardar el modelo en la base de datos
                         $VtaExhibicionDetalle->save();

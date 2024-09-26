@@ -33,7 +33,7 @@ class MantenimientoTablasService
 
         $this->spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA');
         $this->rangeCln_cliente_tb = 'cln_cliente_tb'; // Hoja electrónica
-        $this->rangeInpd_producto_tb = 'inpd_producto_tb'; // Hoja electrónica
+        //$this->rangeInpd_producto_tb = 'inpd_producto_tb'; // Hoja electrónica
         $this->rangeCln_tiendaLocal_tb = 'cln_tiendaLocal_tb'; // Hoja electrónica
         $this->rangeCln_clienteVisitaTipo_tb = 'cln_clienteVisitaTipo_tb'; // Hoja electrónica
     }
@@ -44,7 +44,7 @@ class MantenimientoTablasService
          * son hojas que no cumplen con una gestion pero sin son parte de ellas, y cuando se agreguen en la hoja electronica una 
          */
         $this->importData(Cliente::class, 'clnID', $this->rangeCln_cliente_tb);
-        $this->importData(Producto::class, 'inpdID', $this->rangeInpd_producto_tb);
+        //$this->importData(Producto::class, 'inpdID', $this->rangeInpd_producto_tb);
         $this->importData(TiendaLocal::class, 'cltlID', $this->rangeCln_tiendaLocal_tb);
         $this->importData(ClienteVisitaTipo::class, 'cvtpID', $this->rangeCln_clienteVisitaTipo_tb);
     }
