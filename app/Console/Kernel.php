@@ -28,7 +28,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('migrar:odbc')->hourly();//correr cada hora
         // Primer comando que se ejecuta cada minuto
         $schedule->command('syncAppSheetPostgres:produccionEventos')
-        ->everyMinute()
+        ->everyTwoMinutes()
         ->withoutOverlapping()
         ->after(function () {
             // Ejecutar el segundo comando con un retraso de 3 minutos
