@@ -22,7 +22,7 @@ class AppSheetPostgresService
     {
         $this->client = new Google_Client();
         $this->client->setApplicationName('Google Sheets Laravel Integration');
-        $this->client->setAuthConfig(storage_path('Cuenta_de_servicio_para_obviar_actenticacion_google_info_simmons-427814-1a8cbc93d647.json'));
+        $this->client->setAuthConfig(storage_path(env('AUTENTICACION_GOOGLE_INFO_SIMMONS')));
         $this->client->setScopes([
             Google_Service_Sheets::SPREADSHEETS, // Permite lectura y escritura
         ]);

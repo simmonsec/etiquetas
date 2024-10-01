@@ -12,6 +12,26 @@ use Illuminate\Support\Facades\Log;
 
 class MantenimientoTablasService
 {
+    /**
+     * Clase MantenimientoTablasService
+     *
+     * Esta clase se encarga de la sincronización de datos entre Google Sheets y la base de datos PostgreSQL
+     * para la aplicación de exhibición de visitas. Permite importar datos de diversas hojas de cálculo
+     * de Google Sheets y almacenarlos en las tablas correspondientes en la base de datos.
+     *
+     * Las hojas electrónicas que maneja incluyen:
+     * - `cln_clienteVisitaTipo_tb`: Tabla que almacena información sobre los tipos de visita de los clientes.
+     *
+     * La clase utiliza la API de Google Sheets para acceder a los datos y realizar operaciones de creación
+     * y actualización de registros en las tablas de la base de datos.
+     *
+     * Funcionalidades principales:
+     * - Configuración de autenticación y acceso a la API de Google Sheets.
+     * - Recuperación de datos desde hojas de cálculo específicas.
+     * - Almacenamiento y actualización de registros en la base de datos PostgreSQL.
+     * - Manejo de errores y registros de log para seguimiento de procesos.
+     */
+
     protected $client;
     protected $service;
     protected $spreadsheetId;
@@ -25,27 +45,22 @@ class MantenimientoTablasService
     {
         $this->client = new Google_Client();
         $this->client->setApplicationName('Google Sheets Laravel Integration');
-        $this->client->setAuthConfig(storage_path('Cuenta_de_servicio_para_obviar_actenticacion_google_info_simmons-427814-1a8cbc93d647.json'));
+        $this->client->setAuthConfig(storage_path(env('AUTENTICACION_GOOGLE_INFO_SIMMONS')));
         $this->client->setScopes([Google_Service_Sheets::SPREADSHEETS]);
         $this->client->setAccessType('offline');
 
-        $this->service = new Google_Service_Sheets($this->client);
-
-        $this->spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA');
-        $this->rangeCln_cliente_tb = 'cln_cliente_tb'; // Hoja electrónica
-        //$this->rangeInpd_producto_tb = 'inpd_producto_tb'; // Hoja electrónica
-        $this->rangeCln_tiendaLocal_tb = 'cln_tiendaLocal_tb'; // Hoja electrónica
+        $this->service = new Google_Service_Sheets($this->client); 
+         
         $this->rangeCln_clienteVisitaTipo_tb = 'cln_clienteVisitaTipo_tb'; // Hoja electrónica
     }
 
-    public function fetchAndStoreData()
+    public function fetchAndStoreData($spreadsheetId)
     {
+        $this->spreadsheetId = $spreadsheetId;
         /**
          * son hojas que no cumplen con una gestion pero sin son parte de ellas, y cuando se agreguen en la hoja electronica una 
          */
-        $this->importData(Cliente::class, 'clnID', $this->rangeCln_cliente_tb);
-        //$this->importData(Producto::class, 'inpdID', $this->rangeInpd_producto_tb);
-        $this->importData(TiendaLocal::class, 'cltlID', $this->rangeCln_tiendaLocal_tb);
+         
         $this->importData(ClienteVisitaTipo::class, 'cvtpID', $this->rangeCln_clienteVisitaTipo_tb);
     }
 
