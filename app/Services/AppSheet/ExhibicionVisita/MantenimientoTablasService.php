@@ -6,6 +6,7 @@ use App\Models\Exhibiciones\Cliente;
 use App\Models\Exhibiciones\ClienteVisitaTipo;
 use App\Models\Exhibiciones\Producto;
 use App\Models\Exhibiciones\TiendaLocal;
+use App\Services\LoggerPersonalizado;
 use Google_Client;
 use Google_Service_Sheets;
 use Illuminate\Support\Facades\Log;
@@ -66,6 +67,9 @@ class MantenimientoTablasService
 
     public function importData($model, $primaryKey, $range)
     {
+           // Crear instancia del logger personalizado
+           $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'SycAppSheetPostgres']);
+     
         try {
             // Obtener datos de la hoja
             $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
@@ -73,6 +77,7 @@ class MantenimientoTablasService
 
             if (empty($values)) {
                 throw new \Exception('No data found.');
+                $logger->registrarEvento('No data found.');
             }
 
             // Asume que la primera fila son las cabeceras
@@ -98,6 +103,7 @@ class MantenimientoTablasService
                     }
                     $record->save();
                     Log::info("Registro creado: " . $data[$primaryKey]);
+                    $logger->registrarEvento("Registro creado: " . $data[$primaryKey]);
                 } else {
                     // Actualizar registro existente
                     try {
@@ -106,15 +112,19 @@ class MantenimientoTablasService
                         }
                         $record->save();
                         Log::info("Registro actualizado: " . $data[$primaryKey]);
+                        $logger->registrarEvento("Registro actualizado: " . $data[$primaryKey]);
                     } catch (\Throwable $e) {
                         Log::error('Error al actualizar el registro: ' . $e->getMessage());
+                        $logger->registrarEvento('Error al actualizar el registro: ' . $e->getMessage());
                     }
                 }
             }
         } catch (\Google_Service_Exception $e) {
             Log::error('Error de la API de Google Sheets: ' . $e->getMessage());
+            $logger->registrarEvento('Error de la API de Google Sheets: ' . $e->getMessage());
         } catch (\Exception $e) {
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
         }
     }
 }

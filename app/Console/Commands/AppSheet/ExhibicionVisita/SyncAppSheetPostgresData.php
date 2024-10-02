@@ -4,6 +4,7 @@ namespace App\Console\Commands\AppSheet\ExhibicionVisita;
 use Illuminate\Console\Command;
 use App\Services\AppSheet\ExhibicionVisita\AppSheetPostgresService;
 use App\Services\AppSheet\ExhibicionVisita\MantenimientoTablasService;
+use App\Services\LoggerPersonalizado;
 use Illuminate\Support\Facades\Log;
 class SyncAppSheetPostgresData extends Command
 {
@@ -17,38 +18,53 @@ class SyncAppSheetPostgresData extends Command
     {
         parent::__construct();
         $this->AppSheetPostgresService = $AppSheetPostgresService;
-        $this->MantenimientoTablasService =$MantenimientoTablasService;
+        $this->MantenimientoTablasService = $MantenimientoTablasService;
     }
 
     public function handle()
     {
-        
-        Log::info("--------------------------Inicio Sincronización Google Sheet-------------------------------------------");
-        // Información sobre el inicio del proceso
-        Log::info('Iniciando el proceso de sincronización y actualización de datos. Aplicacion de Exhibiciones..');
-        
-        // ----- Sincronización de Datos con Google Sheets -----
-        Log::info('Iniciando sincronización de datos desde Google Sheets...');
 
-        // Llamada al servicio para obtener y almacenar datos desde Google Sheets// DE LAS GESTIONES DE LA APLICACION VISITAS
+        // Inicializar el logger personalizado con el nombre de la aplicación
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
+
+        // Iniciar la migración de datos desde Google Sheets
+        Log::info("--------------------------Inicio migración Google Sheet-------------------------------------------");
+        $logger->registrarEvento('INICIO');
+
+        // Registro del inicio del proceso de migración y actualización
+        Log::info('Iniciando el proceso de migración y actualización de datos. Aplicación de Exhibiciones.');
+        $logger->registrarEvento('Iniciando el proceso de migración y actualización de datos para la aplicación de Exhibiciones.');
+
+        // ----- Fase 1: migración de datos desde Google Sheets -----
+        Log::info('Iniciando migración de datos desde Google Sheets...');
+        $logger->registrarEvento('Iniciando la migración de datos desde Google Sheets.');
+
+        // Llamada al servicio para obtener y almacenar los datos desde Google Sheets
+        // En este caso, se trata de las gestiones de la aplicación de Visitas
         $this->AppSheetPostgresService->fetchAndStoreData();
 
-        // Confirmación de la sincronización completa
-        Log::info('Sincronización completa. Los datos han sido almacenados exitosamente.');
+        // Confirmación de que la migración ha sido completada exitosamente
+        Log::info('migración completa.');
+        $logger->registrarEvento('migración completada');
 
-        // ----- Actualización de Datos en AppSheet -----
-        Log::info('Iniciando actualización de ID en la base de datos de AppSheet...');
+        // Registrar el final de la fase de migración
+        $logger->registrarEvento('FIN');
 
-        // Llamada al servicio para actualizar datos en AppSheet según los ID almacenados
+        // ----- Fase 2: Actualización de registros en AppSheet -----
+        $logger->registrarEvento('INICIO');       
+        // Iniciar la actualización de los ID en la base de datos de AppSheet
+        Log::info('Actualización de los campos de la hoja electronica de los id migrados....');
+        $logger->registrarEvento('Actualización de los campos de la hoja electronica de los id migrados.');
+
+        // Llamada al servicio para actualizar los datos en AppSheet según los ID ya almacenados
         $this->AppSheetPostgresService->fetchAndUpdateData();
-       
-        // Confirmación de la actualización completa
-        Log::info('Actualización completa. Los ID en la base de datos de AppSheet han sido actualizados exitosamente.');
+        // Registrar el final de la fase de actualización
+        $logger->registrarEvento('FIN');
 
-         
-        Log::info("--------------------------Fin Sincronización Google Sheet-------------------------------------------");
-  
+        // Finalizar el proceso de migración
+        Log::info("--------------------------Fin migración Google Sheet-------------------------------------------");
 
-         
+
+
     }
 }

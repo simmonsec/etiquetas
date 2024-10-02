@@ -3,6 +3,7 @@ namespace App\Console\Commands\AppSheet;
 
 use Illuminate\Console\Command;
 use App\Services\AppSheet\MantenimientoPostgresAppSheetService;
+use App\Services\LoggerPersonalizado;
 use Illuminate\Support\Facades\Log;
 class MantenimientoPostgresAppSheet extends Command
 {
@@ -38,26 +39,41 @@ class MantenimientoPostgresAppSheet extends Command
 
     public function handle()
     {
+        // Crear instancia del logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'SycPostgresAppSheet']);
+    
+        // Inicia el registro del proceso de sincronización
         Log::info("-------------------------- Inicio de Sincronización con Google Sheets -------------------------------------------");
+        $logger->registrarEvento('INICIO');
     
         try {
+            // Registro del inicio del proceso de actualización
             Log::info('Iniciando la actualización de las hojas electrónicas de Google Sheets...');
+            $logger->registrarEvento('Iniciando la actualización de las hojas electrónicas de Google Sheets...');
     
             // Ejecutar la exportación de datos desde PostgreSQL a Google Sheets
             Log::info('Ejecutando la exportación de datos desde PostgreSQL...');
+            $logger->registrarEvento('Ejecutando la exportación de datos desde PostgreSQL...');
+    
+            // Exportar datos a las hojas electrónicas
             $this->mantenimientoPostgresAppSheet->exportDataToSheets(env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA')); // duplicar para poder asignar otra hoja electronica
             $this->mantenimientoPostgresAppSheet->exportDataToSheets(env('GOOGLE_SHEETS_SPREADSHEET_ID')); // hoja electronica produccion eventos
     
+            // Registro de finalización exitosa de la exportación
             Log::info('La exportación de datos se ha completado exitosamente.');
-    
-          
+            $logger->registrarEvento('La exportación de datos se ha completado exitosamente.');
     
         } catch (\Exception $e) {
+            // Registro del error en caso de una excepción
             Log::error('Ocurrió un error durante la sincronización: ' . $e->getMessage());
             Log::error('Detalles del error: ' . $e->getTraceAsString());
+            $logger->registrarEvento('Error durante la sincronización: ' . $e->getMessage());
         }
     
+        // Registro del final del proceso de actualización
         Log::info('Finalizando la actualización de las hojas electrónicas...');
+        $logger->registrarEvento('FIN');
+    
         Log::info("-------------------------- Fin de Sincronización con Google Sheets -------------------------------------------");
     }
     

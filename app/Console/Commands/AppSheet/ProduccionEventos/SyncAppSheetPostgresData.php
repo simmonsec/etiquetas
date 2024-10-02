@@ -3,6 +3,7 @@ namespace App\Console\Commands\AppSheet\ProduccionEventos;
 
 use Illuminate\Console\Command;
 use App\Services\AppSheet\ProduccionEventos\AppSheetPostgresService;
+use App\Services\LoggerPersonalizado;
 use Illuminate\Support\Facades\Log;
 class SyncAppSheetPostgresData extends Command
 {
@@ -27,29 +28,62 @@ class SyncAppSheetPostgresData extends Command
 
     public function handle()
     {
-        Log::info("--------------------------Inicio Sincronización Google Sheet-------------------------------------------");
-        // Información sobre el inicio del proceso
-        Log::info('Iniciando el proceso de sincronización y actualización de datos...');
+        // Inicializar el logger personalizado con el nombre de la aplicación
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
 
-        // ----- Sincronización de Datos con Google Sheets -----
+        // Iniciar la sincronización de eventos de producción desde AppSheet
+        Log::info("--------------------------Inicio Sincronización AppSheet Producción Eventos-------------------------------------------");
+        $logger->registrarEvento('INICIO');
+
+        // Registro inicial de inicio del proceso de sincronización
+        Log::info('Iniciando el proceso de sincronización y actualización de datos desde AppSheet para Producción de Eventos.');
+        $logger->registrarEvento('Iniciando el proceso de sincronización y actualización de datos desde AppSheet para Producción de Eventos.');
+
+        // ----- Fase 1: Sincronización de datos desde Google Sheets -----
         Log::info('Iniciando sincronización de datos desde Google Sheets...');
+        $logger->registrarEvento('Iniciando la sincronización de datos desde Google Sheets.');
 
-        // Llamada al servicio para obtener y almacenar datos desde Google Sheets
+        // Llamada al servicio para obtener y almacenar los datos desde Google Sheets
         $this->AppSheetPostgresService->fetchAndStoreData();
 
-        // Confirmación de la sincronización completa
-        Log::info('Sincronización completa. Los datos han sido almacenados exitosamente.');
+        // Confirmación de que la sincronización ha sido completada exitosamente
+        Log::info('Sincronización completada: Los datos se han almacenado exitosamente en la base de datos.');
+        $logger->registrarEvento('Sincronización completada: Los datos se han almacenado exitosamente.');
 
-        // ----- Actualización de Datos en AppSheet -----
-        Log::info('Iniciando actualización de ID en la base de datos de AppSheet...');
+        // Registrar final de la sincronización
+        $logger->registrarEvento('FIN');
 
-        // Llamada al servicio para actualizar datos en AppSheet según los ID almacenados
+        // ----- Fase 2: Actualización de registros en la base de datos -----
+        $logger->registrarEvento('INICIO');
+        $logger->registrarEvento('Actualizando los registros migrados desde AppSheet a la base de datos de Producción de Eventos.');
+
+        // Iniciar la actualización de los ID en la base de datos
+        Log::info('Iniciando actualización de ID en la base de datos de AppSheet para Producción de Eventos...');
+        $logger->registrarEvento('Iniciando actualización de ID en la base de datos de AppSheet para Producción de Eventos.');
+
+        // Llamada al servicio para actualizar los datos en AppSheet basados en los ID ya almacenados
         $this->AppSheetPostgresService->fetchAndUpdateData();
 
-        // Confirmación de la actualización completa
-        Log::info('Actualización completa. Los ID en la base de datos de AppSheet han sido actualizados exitosamente.');
+        // Confirmación de la actualización exitosa
+        Log::info('Actualización completada: Los ID en la base de datos han sido actualizados exitosamente.');
+        $logger->registrarEvento('Actualización completada: Los ID han sido actualizados exitosamente.');
 
-         
-        Log::info("--------------------------Fin Sincronización Google Sheet-------------------------------------------");
+        // Registrar final de la actualización
+        $logger->registrarEvento('FIN');
+
+        // ----- Fase 3: Verificación de los datos -----
+        $logger->registrarEvento('INICIO');
+        $logger->registrarEvento('Verificando si los datos de la hoja electrónica y la tabla de PostgreSQL están alineados.');
+
+        // Verificar que los datos en Google Sheets coincidan con los datos en PostgreSQL
+        $this->AppSheetPostgresService->verificarProduccionEventos();
+
+        // Confirmación de la verificación finalizada
+        $logger->registrarEvento('Verificación completada: Los datos de Google Sheets y PostgreSQL han sido revisados.');
+        $logger->registrarEvento('FIN');
+
+        // Finalizar el proceso de sincronización
+        Log::info("--------------------------Fin Sincronización Google Sheet Producción de Eventos-------------------------------------------");
+
     }
 }

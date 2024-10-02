@@ -95,16 +95,14 @@ class GnlMigrarDatosOdbc extends Command
                  
                     if (!empty($datos)) {
                         // Insertar datos por lotes en PostgreSQL
+                    
                         try {
                             $success = $this->insertarBatch($connectionPostgres, $i_comando, $datos);
+                            
                         } catch (\Exception $th) {
                             Log::error("ERROR INSERT: " . $th);
                         }
-
-
-                        if (!$success) {
-                            throw new \Exception("Falló la inserción del batch");
-                        }
+ 
 
                         $offset += $batchSize;
                         $restante = $cantidad - $offset;
@@ -159,7 +157,7 @@ class GnlMigrarDatosOdbc extends Command
                 //Log::info('Conexión existente a la base de datos ODBC.');
 
                 $result = odbc_exec($connection, $sql);
-
+             
                 if (!$result) {
                     throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
                 } else {
@@ -214,22 +212,15 @@ class GnlMigrarDatosOdbc extends Command
             $values = [];
     
             foreach ($batch as $fila) {
+                
                 // Escapar y formatear los valores
                 $escapedValues = array_map(function ($value) {
                     // Verificar si el valor es NULL
+                    
                     if (is_null($value)) {
                         return 'NULL';
                     }
-                    // Si es un string, escaparlo correctamente
-                    elseif (is_string($value)) {
-                        // Comprobar si es una fecha válida
-                        if ($this->esFechaValida($value)) {
-                            return "'" . str_replace("'", "''", $value) . "'"; // Escapar comillas simples
-                        } else {
-                            // Si la fecha es inválida, devolver NULL o alguna fecha por defecto
-                            return 'NULL';
-                        }
-                    }
+                   
                     // Devolver el valor tal como está para otros tipos
                     else {
                         return $value;
@@ -242,8 +233,9 @@ class GnlMigrarDatosOdbc extends Command
     
             // Crear la consulta completa con los valores
             $query = $sql . ' ' . implode(', ', $values);
-    
+
             while ($retries < $maxRetries && !$success) {
+            
                 try {
                     // Ejecutar la consulta
                     $result = odbc_exec($connection, $query);

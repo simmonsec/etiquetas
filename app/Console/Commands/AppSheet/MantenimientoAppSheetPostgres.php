@@ -4,6 +4,7 @@ namespace App\Console\Commands\AppSheet;
 use Illuminate\Console\Command;
 use App\Services\AppSheet\ExhibicionVisita\AppSheetPostgresService;
 use App\Services\AppSheet\ExhibicionVisita\MantenimientoTablasService;
+use App\Services\LoggerPersonalizado;
 use Illuminate\Support\Facades\Log;
 class MantenimientoAppSheetPostgres extends Command
 {
@@ -30,26 +31,43 @@ class MantenimientoAppSheetPostgres extends Command
      * 4. Duplica la función `importData()` que se encuentra dentro de la llamada a `fetchAndStoreData()`. En la función duplicada, pasa como parámetros tu Modelo, la clave primaria, y la variable que contiene el nombre de tu hoja electrónica.
      */
 
-    public function handle()
-    {
-        Log::info("-------------------------- Inicio de Sincronización de Google Sheets a PostgreSQL -------------------------------------------");
-
-        try {
-            Log::info('Iniciando la sincronización de las tablas electrónicas en PostgreSQL desde Google Sheets...');
-
-            // Sincronizar tablas electrónicas en PostgreSQL
-            Log::info('Ejecutando la sincronización de datos desde Google Sheets...');
-            $this->MantenimientoTablasService->fetchAndStoreData(env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA')); // se le debe pasar el id de la hoja electronica. para crear de otras solo duplicas y agregas el id de tu .env
-
-            Log::info('La sincronización de datos se ha completado exitosamente.');
-
-        } catch (\Exception $e) {
-            Log::error('Ocurrió un error durante la sincronización: ' . $e->getMessage());
-            Log::error('Detalles del error: ' . $e->getTraceAsString());
-        }
-
-        Log::info('Finalizando la sincronización de Google Sheets a PostgreSQL...');
-        Log::info("-------------------------- Fin de Sincronización de Google Sheets a PostgreSQL -------------------------------------------");
-    }
+     public function handle()
+     {
+         // Crear instancia del logger personalizado
+         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'SycAppSheetPostgres']);
+     
+         // Inicia el registro del proceso de sincronización
+         Log::info("-------------------------- Inicio de Sincronización de Google Sheets a PostgreSQL -------------------------------------------");
+         $logger->registrarEvento('INICIO');
+     
+         try {
+             // Registro del inicio del proceso de sincronización
+             Log::info('Iniciando la sincronización de las tablas electrónicas en PostgreSQL desde Google Sheets...');
+             $logger->registrarEvento('Iniciando la sincronización de las tablas electrónicas en PostgreSQL desde Google Sheets... App Visitas');
+     
+             // Sincronizar tablas electrónicas en PostgreSQL
+             Log::info('Ejecutando la sincronización de datos desde Google Sheets... APP Visitas');
+             
+             // Llamada al servicio para sincronizar datos, pasando el ID de la hoja electrónica desde el archivo .env
+             $this->MantenimientoTablasService->fetchAndStoreData(env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA'));
+     
+             // Registro de finalización exitosa de la sincronización
+             Log::info('La sincronización de datos se ha completado exitosamente.');
+             $logger->registrarEvento('La sincronización de datos se ha completado exitosamente.');
+     
+         } catch (\Exception $e) {
+             // Registro del error en caso de una excepción
+             Log::error('Ocurrió un error durante la sincronización: ' . $e->getMessage());
+             Log::error('Detalles del error: ' . $e->getTraceAsString());
+             $logger->registrarEvento('Error durante la sincronización: ' . $e->getMessage());
+         }
+     
+         // Registro del final del proceso de sincronización
+         Log::info('Finalizando la sincronización de Google Sheets a PostgreSQL...');
+         $logger->registrarEvento('FIN');
+     
+         Log::info("-------------------------- Fin de Sincronización de Google Sheets a PostgreSQL -------------------------------------------");
+     }
+     
 
 }

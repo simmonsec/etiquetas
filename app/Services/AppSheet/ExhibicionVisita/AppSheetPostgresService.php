@@ -5,6 +5,7 @@ use App\Models\Exhibiciones\Cliente;
 use App\Models\Exhibiciones\ClienteVisita;
 use App\Models\Exhibiciones\VtaExhibicion;
 use App\Models\Exhibiciones\VtaExhibicionDetalle;
+use App\Services\LoggerPersonalizado;
 use Google_Client;
 use Google_Service_Sheets;
 use Google_Service_Sheets_BatchUpdateValuesRequest;
@@ -43,29 +44,37 @@ class AppSheetPostgresService
 
     public function fetchAndStoreData()
     {
+        // Inicializar el logger personalizado con el nombre de la aplicación
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
 
         try {
-
             // Clientes visitas
             $responseClienteVisita = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeClienteVisita);
             $valuesClienteVisita = $responseClienteVisita->getValues();
 
             if (empty($valuesClienteVisita)) {
+                $logger->registrarEvento('No se encontraron datos en la hoja de cálculo.');
+                Log::error('No data found.');
                 throw new \Exception('No data found.');
             }
 
             // Asume que la primera fila son las cabeceras
             $headersClienteVisita = array_shift($valuesClienteVisita);
+            $logger->registrarEvento('Cabeceras de Cliente Visita: ' . json_encode($headersClienteVisita));
+            Log::info('Cabeceras de Cliente Visita: ' . json_encode($headersClienteVisita));
 
             foreach ($valuesClienteVisita as $row) {
                 // Asegúrate de que la fila tenga el mismo número de columnas que las cabeceras
                 if (count($row) !== count($headersClienteVisita)) {
+                    $logger->registrarEvento('Número de columnas en la fila no coincide con el número de cabeceras. ClienteVisita');
                     Log::error('Número de columnas en la fila no coincide con el número de cabeceras. ClienteVisita');
                     continue;
                 }
 
                 // Mapear los datos a un array asociativo usando las cabeceras
                 $dataClienteVisita = array_combine($headersClienteVisita, $row);
+
+                Log::info('Datos de Cliente Visita: ' . json_encode($dataClienteVisita));
 
                 // Filtrar solo las filas que tienen preve_estado = 'N'
                 if (isset($dataClienteVisita['clvt_estado_bd']) && $dataClienteVisita['clvt_estado_bd'] === 'N') {
@@ -76,13 +85,12 @@ class AppSheetPostgresService
                         $clienteVisita->clvt_clnID = $dataClienteVisita['clvt_clnID'] ?? 0;
                         $clienteVisita->clvt_cltlID = $dataClienteVisita['clvt_cltlID'] ?? 0;
                         $clienteVisita->clvt_cvtpID = $dataClienteVisita['clvt_cvtpID'] ?? 0;
-                        
+
                         $clienteVisita->clvt_estado_bd = $dataClienteVisita['clvt_estado_bd'] ?? null;
                         $clienteVisita->clvt_nota = $dataClienteVisita['clvt_nota'] ?? null;
                         $clienteVisita->clvt_estado = $dataClienteVisita['clvt_estado'] ?? null;
                         $clienteVisita->clvt_creado_por = $dataClienteVisita['clvt_creado_por'] ?? null;
                         $clienteVisita->clvt_geolocalizacion = $dataClienteVisita['clvt_geolocalizacion'] ?? null;
-
 
                         // Verifica y convierte clvt_fecha
                         if (!empty($dataClienteVisita['clvt_fecha'])) {
@@ -107,7 +115,6 @@ class AppSheetPostgresService
                         /**
                          * Exhibiciones 
                          * **/
-
                         $this->saveExhibicion($clienteVisita->clvtID);
 
                         // Actualizar la visita migrada
@@ -115,48 +122,53 @@ class AppSheetPostgresService
                         // Guardar el modelo en la base de datos
                         $clienteVisita->save();
 
+                        $logger->registrarEvento('Cliente Visita guardado exitosamente: ' . $clienteVisita->clvtID);
+                        Log::info('Cliente Visita guardado exitosamente: ' . $clienteVisita->clvtID);
 
                     } catch (\Throwable $e) {
+                        $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
                         Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
-
                     }
-
                 }
-
             }
 
-
-
-
         } catch (\Google_Service_Exception $e) {
+            $logger->registrarEvento('Error de la API de Google Sheets: ' . $e->getMessage());
             Log::error('Error de la API de Google Sheets: ' . $e->getMessage());
         } catch (\Exception $e) {
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
         }
-
-
-
     }
+
 
     public function saveExhibicion($clvtID)
     {
+        // Inicializar el logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
+
         /**
          * Exhibiciones 
-         * */
-
-        $responseExhibicion = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeExhibicion);
-        $valuesExhibicion = $responseExhibicion->getValues();
-
-        if (empty($valuesExhibicion)) {
-            throw new \Exception('No data found.');
-        }
-
-        // Asume que la primera fila son las cabeceras
-        $headersExhibicion = array_shift($valuesExhibicion);
+         */
         try {
+            $responseExhibicion = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeExhibicion);
+            $valuesExhibicion = $responseExhibicion->getValues();
+
+            if (empty($valuesExhibicion)) {
+                $logger->registrarEvento('No se encontraron datos en la hoja de exhibiciones.');
+                Log::error('No data found in exhibitions sheet.');
+                throw new \Exception('No data found.');
+            }
+
+            // Asume que la primera fila son las cabeceras
+            $headersExhibicion = array_shift($valuesExhibicion);
+            $logger->registrarEvento('Cabeceras de Exhibicion: ' . json_encode($headersExhibicion));
+            Log::info('Cabeceras de Exhibicion: ' . json_encode($headersExhibicion));
+
             foreach ($valuesExhibicion as $row) {
                 // Asegúrate de que la fila tenga el mismo número de columnas que las cabeceras
                 if (count($row) !== count($headersExhibicion)) {
+                    $logger->registrarEvento('Número de columnas en la fila no coincide con el número de cabeceras. VtaExhibicion');
                     Log::error('Número de columnas en la fila no coincide con el número de cabeceras. VtaExhibicion');
                     continue;
                 }
@@ -177,7 +189,7 @@ class AppSheetPostgresService
                         $VtaExhibicion->cvea_clnID = $dataExhibicion['cvea_clnID'] ?? 0;
                         $VtaExhibicion->cvea_cltlID = $dataExhibicion['cvea_cltlID'] ?? 0;
                         $VtaExhibicion->cvea_cvtpID = $dataExhibicion['cvea_cvtpID'] ?? 0;
-                        $VtaExhibicion->cvea_clvtID = $dataExhibicion['cvea_clvtID'] ?? null; 
+                        $VtaExhibicion->cvea_clvtID = $dataExhibicion['cvea_clvtID'] ?? null;
                         $VtaExhibicion->cvea_carasVacias = $dataExhibicion['cvea_carasVacias'] ?? null;
                         $VtaExhibicion->cvea_ubicacion = $dataExhibicion['cvea_ubicacion'] ?? null;
                         $VtaExhibicion->cvea_foto1 = $dataExhibicion['cvea_foto1'] ?? null;
@@ -205,19 +217,28 @@ class AppSheetPostgresService
                         // Guardar el modelo en la base de datos
                         $VtaExhibicion->save();
 
+                        $logger->registrarEvento('Exhibición guardada exitosamente: ' . $VtaExhibicion->cveaID);
+                        Log::info('Exhibición guardada exitosamente: ' . $VtaExhibicion->cveaID);
+
                     } catch (\Throwable $e) {
-                        Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
+                        $logger->registrarEvento('Ocurrió un error inesperado al guardar la exhibición: ' . $e->getMessage());
+                        Log::error('Ocurrió un error inesperado al guardar la exhibición: ' . $e->getMessage());
                     }
                 }
             }
         } catch (\Exception $e) {
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
         }
     }
 
 
+
     public function saveExhibicionDetalle($cveaID)
     {
+        // Inicializar el logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
+
         /**
          * Exhibiciones Detalles
          * */
@@ -238,9 +259,9 @@ class AppSheetPostgresService
                 // Mapear los datos a un array asociativo usando las cabeceras
                 $dataExhibicionDetalle = array_combine($headersExhibicionDetalle, $row);
 
-                 // Convertir ambos valores a cadenas para asegurarse de que la comparación funcione
-                 $exhibicioncveaID = (string) $dataExhibicionDetalle['cvead_cveaID'];
-                 $cveaIDStr = (string) $cveaID;
+                // Convertir ambos valores a cadenas para asegurarse de que la comparación funcione
+                $exhibicioncveaID = (string) $dataExhibicionDetalle['cvead_cveaID'];
+                $cveaIDStr = (string) $cveaID;
 
                 // Filtrar solo las filas que tienen cvea_cveaID = $cveaID
                 if ($exhibicioncveaID === $cveaIDStr) {
@@ -258,7 +279,7 @@ class AppSheetPostgresService
 
                     } catch (\Throwable $e) {
                         Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
-
+                        $logger->registrarEvento('Ocurrió un error inesperado al guardar el detalle de la exhibición: ' . $e->getMessage());
                     }
                 }
 
@@ -266,51 +287,42 @@ class AppSheetPostgresService
             }
         } catch (\Exception $e) {
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
         }
     }
 
     public function fetchAndUpdateData()
     {
+        // Inicializar el logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
+
         try {
-            // Autenticar y obtener el servicio de Google Sheets usando la cuenta de servicio
             $service = $this->service;
 
-            // Obtener los datos de la hoja de cálculo
             $response = $service->spreadsheets_values->get($this->spreadsheetId, $this->rangeClienteVisita);
             $values = $response->getValues();
 
             if (empty($values)) {
+                $logger->registrarEvento('No se encontraron datos en la hoja de ClienteVisita.');
                 throw new \Exception('No data found.');
             }
 
-            // Asume que la primera fila son las cabeceras
             $headers = array_shift($values);
-
-            // Obtener los clvtID ya almacenados en la base de datos
             $storeclvtID = ClienteVisita::whereIn('clvtID', $this->registrosActualizar)->pluck('clvtID')->toArray();
 
             $updatedValues = [];
             foreach ($values as $index => $row) {
-                // Mapear los datos a un array asociativo usando las cabeceras
                 $data = array_combine($headers, $row);
-               
-                // Verificar si el clvtID ya está almacenado en la base de datos
-                if (in_array($data['clvtID'], $storeclvtID)) {
-                    // Filtrar solo las filas que tienen clvt_estado_bd = 'N'
-                    if (isset($data['clvt_estado_bd']) && $data['clvt_estado_bd'] === 'N') {
-                        // Cambiar el estado a 'A' o cualquier valor deseado
-                        $data['clvt_estado_bd'] = 'A';
 
-                        // Actualizar el valor de updated_at con la fecha y hora actual
+                if (in_array($data['clvtID'], $storeclvtID)) {
+                    if (isset($data['clvt_estado_bd']) && $data['clvt_estado_bd'] === 'N') {
+                        $data['clvt_estado_bd'] = 'A';
                         $data['updated_at'] = \Carbon\Carbon::now()->format('d/m/Y H:i:s');
 
-                        // Almacenar el valor de clvt_estado_bd en la columna H
                         $updatedValues[] = [
                             'range' => "cln_clienteVisita_tb!H" . ($index + 2),
                             'values' => [[$data['clvt_estado_bd']]],
                         ];
-
-                        // Almacenar el valor de updated_at en la columna K
                         $updatedValues[] = [
                             'range' => "cln_clienteVisita_tb!L" . ($index + 2),
                             'values' => [[$data['updated_at']]],
@@ -320,24 +332,22 @@ class AppSheetPostgresService
             }
 
             if (!empty($updatedValues)) {
-                // Crear la solicitud de actualización
                 $body = new Google_Service_Sheets_BatchUpdateValuesRequest([
                     'valueInputOption' => 'RAW',
                     'data' => $updatedValues,
                 ]);
 
-                // Ejecutar la actualización
                 $result = $service->spreadsheets_values->batchUpdate($this->spreadsheetId, $body);
-
-                Log::info("Se actualizaron {$result->getTotalUpdatedCells()} celdas.");
+                $logger->registrarEvento("Se actualizaron {$result->getTotalUpdatedCells()} celdas.");
             }
 
         } catch (\Google_Service_Exception $e) {
-            Log::error('Error de la API de Google Sheets: ' . $e->getMessage());
+            $logger->registrarEvento('Error de la API de Google Sheets: ' . $e->getMessage());
         } catch (\Exception $e) {
-            Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
         }
     }
+
 
 
 

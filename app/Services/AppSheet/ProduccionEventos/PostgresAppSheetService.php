@@ -1,6 +1,7 @@
 <?php
 namespace App\Services\AppSheet\ProduccionEventos;
 
+use App\Services\LoggerPersonalizado;
 use Google_Client;
 use Google_Service_Sheets;
 use Google_Service_Sheets_BatchUpdateValuesRequest;
@@ -38,6 +39,9 @@ class PostgresAppSheetService
 
     public function fetchAndInsert()
     {
+        // Crear instancia del logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+    
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'PRODUCCION_EVENTOS_COLABORADORES';
         $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb')
@@ -48,6 +52,7 @@ class PostgresAppSheetService
 
         if ($events->isEmpty()) {
             Log::info('No se encontraron registros con estado "N" para migrar.');
+            $logger->registrarEvento('No se encontraron registros con estado "N" para migrar.');
             return;
         }
 
@@ -70,6 +75,7 @@ class PostgresAppSheetService
             ];
         }
         Log::info(print_r($values, true));
+        $logger->registrarEvento(print_r($values, true));
         try {
             $body = new Google_Service_Sheets_ValueRange([
                 'values' => $values
@@ -81,7 +87,7 @@ class PostgresAppSheetService
 
             $this->service->spreadsheets_values->append($spreadsheetId, $sheetName, $body, $params);
             Log::info('Datos migrados con éxito a Google Sheets.');
-
+            $logger->registrarEvento('Datos migrados con éxito a Google Sheets.');
             DB::transaction(function () use ($events) {
                 DB::table('Simmons01.prod_app_produccionEventoColab_tb')
                     ->whereIn('prevcID', $events->pluck('prevcID'))
@@ -91,14 +97,19 @@ class PostgresAppSheetService
             Log::info('Estado de los registros actualizados a "A".');
         } catch (\Google_Service_Exception $e) {
             Log::info('Error de la API de Google Sheets: ' . $e->getMessage());
+            $logger->registrarEvento('Error de la API de Google Sheets: ' . $e->getMessage());
         } catch (\Exception $e) {
             Log::info('Ocurrió un error inesperado: ' . $e->getMessage());
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
         }
 
     }
 
     public function sycNovedades()
     {
+        // Crear instancia del logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+    
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'NOVEDADES';
 
@@ -108,11 +119,14 @@ class PostgresAppSheetService
             $range = $sheetName . '!A2:Z'; // Ajusta el rango según tus necesidades
             $this->service->spreadsheets_values->clear($spreadsheetId, $range, new Google_Service_Sheets_ClearValuesRequest());
             Log::info('Contenido de la hoja (excepto cabeceras) eliminado con éxito.');
+            $logger->registrarEvento('Contenido de la hoja (excepto cabeceras) eliminado con éxito.');
         } catch (\Google_Service_Exception $e) {
             Log::info('Error al eliminar el contenido de la hoja: ' . $e->getMessage());
+            $logger->registrarEvento('Error al eliminar el contenido de la hoja: ' . $e->getMessage());
             return; // Salir si hay un error al limpiar la hoja
         } catch (\Exception $e) {
             Log::info('Ocurrió un error inesperado al eliminar el contenido de la hoja: ' . $e->getMessage());
+            $logger->registrarEvento('Ocurrió un error inesperado al eliminar el contenido de la hoja: ' . $e->getMessage());
             return; // Salir si hay un error inesperado
         }
 
@@ -187,16 +201,22 @@ class PostgresAppSheetService
 
             $this->service->spreadsheets_values->append($spreadsheetId, $sheetName, $body, $params);
             Log::info('Datos migrados con éxito a Google Sheets.');
+            $logger->registrarEvento('Datos migrados con éxito a Google Sheets.');
         } catch (\Google_Service_Exception $e) {
             Log::info('Error de la API de Google Sheets: ' . $e->getMessage());
+            $logger->registrarEvento('Error de la API de Google Sheets: ' . $e->getMessage());
         } catch (\Exception $e) {
             Log::info('Ocurrió un error inesperado: ' . $e->getMessage());
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
         }
     }
 
 
     public function uptColaboradorEstadoAct()
     {
+         // Crear instancia del logger personalizado
+         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+    
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'COLABORADORES';
         try {
@@ -277,7 +297,9 @@ class PostgresAppSheetService
             $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $batchRequest);
     
             Log::info('Datos actualizados con éxito en Google Sheets.');
+            $logger->registrarEvento('Datos actualizados con éxito en Google Sheets.');
         } catch (\Throwable $th) {
+            $logger->registrarEvento("uptColaboradorEstadoAct ----- ".$th);
             Log::info("uptColaboradorEstadoAct ----- ".$th);
         }
     }
@@ -285,6 +307,9 @@ class PostgresAppSheetService
 
     public function uptColaboradorSeccion()
     {
+         // Crear instancia del logger personalizado
+         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+    
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'COLABORADORES';
 
@@ -329,7 +354,7 @@ class PostgresAppSheetService
             $spreadsheetId,
             $body
         );
-
+        $logger->registrarEvento('Datos actualizados con éxito en Google Sheets.');
         Log::info('Datos actualizados con éxito en Google Sheets.');
     }
 

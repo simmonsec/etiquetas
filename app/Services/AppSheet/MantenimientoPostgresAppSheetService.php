@@ -6,6 +6,7 @@ use App\Models\Exhibiciones\Cliente;
 use App\Models\Exhibiciones\ClienteVisitaTipo;
 use App\Models\Exhibiciones\Producto;
 use App\Models\Exhibiciones\TiendaLocal;
+use App\Services\LoggerPersonalizado;
 use Google_Client;
 use Google_Service_Sheets;
 use Illuminate\Support\Facades\Log;
@@ -64,12 +65,16 @@ class MantenimientoPostgresAppSheetService
      */
     public function exportTableToSheet($model, $primaryKey, $range)
     {
+         // Crear instancia del logger personalizado
+         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'SycPostgresAppSheet']);
+    
         try {
             // Obtener los registros actualizados de la base de datos
             $dbRecords = $model::where('is_updated', true)->get()->toArray();
 
             if (empty($dbRecords)) {
                 Log::info("No hay registros actualizados para exportar en la tabla: {$range}");
+                $logger->registrarEvento("No hay registros actualizados para exportar en la tabla: {$range}");
                 return;
             }
 
@@ -79,6 +84,7 @@ class MantenimientoPostgresAppSheetService
 
             if (empty($sheetValues)) {
                 throw new \Exception('No se encontraron datos en la hoja de cálculo.');
+                $logger->registrarEvento('No se encontraron datos en la hoja de cálculo.');
             }
 
             // Asumimos que la primera fila contiene los encabezados
@@ -111,6 +117,7 @@ class MantenimientoPostgresAppSheetService
                     print_r("actualizarlo el nuevo registro\n");
                     $sheetData[$record[$primaryKey]] = $recordArray;
                     Log::info("Registro actualizado en la hoja: " . $record[$primaryKey]);
+                    $logger->registrarEvento("Registro actualizado en la hoja: " . $record[$primaryKey]);
                 } else {
                     // Si no existe, agregar el nuevo registro
                     print_r("agregar el nuevo registro\n");
@@ -119,6 +126,7 @@ class MantenimientoPostgresAppSheetService
 
                     $sheetData[$record[$primaryKey]] = $recordArray;
                     Log::info("Registro nuevo agregado en la hoja: " . $record[$primaryKey]);
+                    $logger->registrarEvento("Registro nuevo agregado en la hoja: " . $record[$primaryKey]);
                 }
 
                 // Almacenar las filas actualizadas o nuevas para enviarlas a Google Sheets
@@ -146,7 +154,7 @@ class MantenimientoPostgresAppSheetService
                 );
 
                 Log::info("Datos actualizados en la hoja: {$range}");
-
+                $logger->registrarEvento("Datos actualizados en la hoja: {$range}");
                 // Marcar los registros en PostgreSQL como sincronizados (is_updated = false)
                 $model::where('is_updated', true)->update(['updated_at' => \Carbon\Carbon::now()->format('Y-m-d H:i:s')]);
                 $model::where('is_updated', true)->update(['is_updated' => false]);
@@ -154,6 +162,7 @@ class MantenimientoPostgresAppSheetService
             }
         } catch (\Exception $e) {
             Log::error("Error al exportar los datos a la hoja: " . $e->getMessage());
+            $logger->registrarEvento("Error al exportar los datos a la hoja: " . $e->getMessage());
         }
     }
 }
