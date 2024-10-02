@@ -71,17 +71,7 @@ class SyncAppSheetPostgresData extends Command
         // Registrar final de la actualización
         $logger->registrarEvento('FIN');
 
-        // ----- Fase 3: Verificación de los datos -----
-        $logger->registrarEvento('INICIO');
-        $logger->registrarEvento('Verificando si los datos de la hoja electrónica y la tabla de PostgreSQL están alineados.');
-
-        // Verificar que los datos en Google Sheets coincidan con los datos en PostgreSQL
-        $this->AppSheetPostgresService->verificarProduccionEventos();
-
-        // Confirmación de la verificación finalizada
-        $logger->registrarEvento('Verificación completada: Los datos de Google Sheets y PostgreSQL han sido revisados.');
-        $logger->registrarEvento('FIN');
-
+       
         // Finalizar el proceso de sincronización
         Log::info("--------------------------Fin Sincronización Google Sheet Producción de Eventos-------------------------------------------");
 
