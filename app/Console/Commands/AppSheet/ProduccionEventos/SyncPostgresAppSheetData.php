@@ -1,7 +1,7 @@
 <?php
 namespace App\Console\Commands\AppSheet\ProduccionEventos;
 
-use App\Services\AppSheet\ExhibicionVisita\AppSheetPostgresService;
+use App\Services\AppSheet\ProduccionEventos\AppSheetPostgresService;
 use Illuminate\Console\Command;
 use App\Services\AppSheet\ProduccionEventos\PostgresAppSheetService;
 use App\Services\LoggerPersonalizado;
@@ -19,6 +19,7 @@ class SyncPostgresAppSheetData extends Command
     {
         parent::__construct();
         $this->actualizarHojaElectronica = $actualizarHojaElectronica;
+        $this->AppSheetPostgresService = $AppSheetPostgresService;
 
     }
 
