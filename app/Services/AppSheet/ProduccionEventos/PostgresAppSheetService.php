@@ -41,14 +41,14 @@ class PostgresAppSheetService
     {
         // Crear instancia del logger personalizado
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
-    
+
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'PRODUCCION_EVENTOS_COLABORADORES';
         $events = DB::table('Simmons01.prod_app_produccionEventoColab_tb')
-        ->where('prevc_estado', 'N')
-        ->where('trigger_processed', true)
-        ->where(DB::raw('created_at + INTERVAL \'3 minutes\''), '<', DB::raw('NOW()'))
-        ->get();
+            ->where('prevc_estado', 'N')
+            ->where('trigger_processed', true)
+            ->where(DB::raw('created_at + INTERVAL \'3 minutes\''), '<', DB::raw('NOW()'))
+            ->get();
 
         if ($events->isEmpty()) {
             Log::info('No se encontraron registros con estado "N" para migrar.');
@@ -109,7 +109,7 @@ class PostgresAppSheetService
     {
         // Crear instancia del logger personalizado
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
-    
+
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'NOVEDADES';
 
@@ -170,10 +170,50 @@ class PostgresAppSheetService
             )
             AND t1.col_estado = \'A\'
         )
-    ');
-    
+            
+        UNION(
 
+
+                WITH dias_faltantes AS (
+                    -- 1. Obtener todas las combinaciones posibles de colaboradores activos y días de jornadas
+                    SELECT 
+                        col."colID", 
+                        fecha."dim_fecha",
+                        fecha."dimDateint"
+                    FROM 
+                        "Simmons01".prod_app_colaboradores_tb col
+                    CROSS JOIN 
+                        (SELECT "dim_fecha", "dimDateint" 
+                        FROM "Simmons01"."gnl_dimensionFecha_tb" 
+                        WHERE "dim_fechamanejoproduccion" = \'NO\' 
+                        AND "dim_fecha" BETWEEN \'2024-09-01\' AND CURRENT_DATE) fecha
+                    WHERE 
+                        col."col_estado" = \'A\'  -- Solo colaboradores activos
+                ),
+                -- 2. Unir con prod_app_produccionEventoColab_tb para determinar los días que faltan
+                registros_faltantes AS (
+                    SELECT 
+                        dias_faltantes."colID" AS "nov_colID", 
+                        dias_faltantes."dim_fecha" AS nov_prevc_inicio_fecha
+                    FROM 
+                        dias_faltantes
+                    LEFT JOIN 
+                        "Simmons01"."prod_app_produccionEventoColab_tb" prod
+                        ON dias_faltantes."colID" = prod."prevc_colID"
+                        AND dias_faltantes."dimDateint" = prod."prevc_inicio_fecha_ref"
+                    WHERE 
+                        prod."prevc_colID" IS NULL  -- Solo filas donde no hay registro de jornada
+                )
+                -- 3. Mostrar los resultados
+                SELECT  nov_prevc_inicio_fecha, "nov_colID",1 AS "nov_eprtID",CONCAT(\'El colaborador no ha registrado ningún evento para la fecha. \',nov_prevc_inicio_fecha) as comentario
+                FROM registros_faltantes
+                ORDER BY "nov_colID", "nov_prevc_inicio_fecha"
     
+            )
+    ');
+
+
+
 
         //$comentario = "Falta el Cierre de Jornada";
         $values = [];
@@ -214,27 +254,27 @@ class PostgresAppSheetService
 
     public function uptColaboradorEstadoAct()
     {
-         // Crear instancia del logger personalizado
-         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
-    
+        // Crear instancia del logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'COLABORADORES';
         try {
-            
+
             // Leer los datos actuales de la hoja de cálculo
             $response = $this->service->spreadsheets_values->get($spreadsheetId, $sheetName);
             $values = $response->getValues();
-    
+
             // Obtener los encabezados
             $headers = array_shift($values);
-    
+
             // Convertir los datos de la hoja en un array asociativo
             $data = [];
             foreach ($values as $index => $row) {
                 $colID = $row[array_search('colID', $headers)]; // Obtener el colID
                 $data[$colID] = $index + 2; // Guardar el índice de la fila con colID como clave
             }
-    
+
             // Obtener los datos más recientes de la base de datos
             $datos = DB::select('WITH ranked_events AS (
             SELECT
@@ -263,16 +303,16 @@ class PostgresAppSheetService
             rn = 1
         ORDER BY
             "prevc_colID"');
-    
+
             // Preparar los datos para la actualización
             $dataToUpdate = [];
-         
-            foreach ($datos as $dato) {
-                $col_ult_seccion_ref ='';
-                if(is_null($dato->col_ult_seccion_ref)){
-                    $col_ult_seccion_ref ='SIN SECCION';
 
-                }else{
+            foreach ($datos as $dato) {
+                $col_ult_seccion_ref = '';
+                if (is_null($dato->col_ult_seccion_ref)) {
+                    $col_ult_seccion_ref = 'SIN SECCION';
+
+                } else {
                     $col_ult_seccion_ref = $dato->col_ult_seccion_ref;
                 }
 
@@ -281,35 +321,35 @@ class PostgresAppSheetService
                     $dataToUpdate[] = [
                         'range' => $sheetName . '!F' . $rowIndex . ':J' . $rowIndex, // Ajusta el rango según sea necesario
                         'values' => [
-                            [$col_ult_seccion_ref , $dato->col_evento_ref, $dato->col_evento_fecha_ref, $dato->col_evento_hora_ref, \Carbon\Carbon::now()->format('d/m/Y H:i:s')]
+                            [$col_ult_seccion_ref, $dato->col_evento_ref, $dato->col_evento_fecha_ref, $dato->col_evento_hora_ref, \Carbon\Carbon::now()->format('d/m/Y H:i:s')]
                         ]
                     ];
                 }
             }
-    
+
             // Agrupar todas las actualizaciones en una solicitud de tipo batchUpdate
             $batchRequest = new Google_Service_Sheets_BatchUpdateValuesRequest([
                 'data' => $dataToUpdate,
                 'valueInputOption' => 'RAW'
             ]);
-    
+
             // Enviar la solicitud a Google Sheets
             $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $batchRequest);
-    
+
             Log::info('Datos actualizados con éxito en Google Sheets.');
             $logger->registrarEvento('Datos actualizados con éxito en Google Sheets.');
         } catch (\Throwable $th) {
-            $logger->registrarEvento("uptColaboradorEstadoAct ----- ".$th);
-            Log::info("uptColaboradorEstadoAct ----- ".$th);
+            $logger->registrarEvento("uptColaboradorEstadoAct ----- " . $th);
+            Log::info("uptColaboradorEstadoAct ----- " . $th);
         }
     }
 
 
     public function uptColaboradorSeccion()
     {
-         // Crear instancia del logger personalizado
-         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
-    
+        // Crear instancia del logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+
         $spreadsheetId = env('GOOGLE_SHEETS_SPREADSHEET_ID');
         $sheetName = 'COLABORADORES';
 

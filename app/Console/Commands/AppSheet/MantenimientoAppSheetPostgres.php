@@ -50,6 +50,7 @@ class MantenimientoAppSheetPostgres extends Command
              
              // Llamada al servicio para sincronizar datos, pasando el ID de la hoja electrónica desde el archivo .env
              $this->MantenimientoTablasService->fetchAndStoreData(env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA'));
+             $this->MantenimientoTablasService->fetchAndStoreData(env('GOOGLE_SHEETS_SPREADSHEET_ID'));
      
              // Registro de finalización exitosa de la sincronización
              Log::info('La sincronización de datos se ha completado exitosamente.');

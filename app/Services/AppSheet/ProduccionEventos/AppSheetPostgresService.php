@@ -65,12 +65,13 @@ class AppSheetPostgresService
 
                 // Filtrar solo las filas que tienen preve_estado = 'N'
                 if (isset($data['preve_estado']) && $data['preve_estado'] === 'N') {
+                    
                     // Crear una instancia del modelo y asignar valores
                     $evento = new ProduccionEventos();
                     $evento->preveID = $data['preveID'] ?? 0;
                     $evento->preve_colID = $data['preve_colID'] ?? 0;
                     $evento->preve_eprtID = $data['preve_eprtID'] ?? 0;
-                    $evento->preve_secID = $data['preve_secID'] ?? null;
+                    $evento->preve_secID = $data['preve_secID'] ?? 0;
                     $evento->preve_referencia = $data['preve_referencia'] ?? null;
 
                     // Verifica y convierte preve_inicio_fecha
@@ -124,7 +125,7 @@ class AppSheetPostgresService
                     }
 
                     $this->registrosActualizar[] = $evento->preveID;
-
+                    print_r($evento);
                     // Guardar el modelo en la base de datos
                     $evento->save();
                     $logger->registrarEvento('Evento guardado exitosamente con preveID: ' . $evento->preveID);
@@ -243,7 +244,7 @@ class AppSheetPostgresService
 
             // Paso 2: Obtener datos de la base de datos
             $datosBaseDeDatos = ProduccionEventos::all()->keyBy('preveID'); // Usamos preveID como clave
-
+            
             // Asume que la primera fila son las cabeceras
             $headers = array_shift($datosHoja);
 

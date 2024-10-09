@@ -6,6 +6,7 @@ use App\Models\Exhibiciones\Cliente;
 use App\Models\Exhibiciones\ClienteVisitaTipo;
 use App\Models\Exhibiciones\Producto;
 use App\Models\Exhibiciones\TiendaLocal;
+use App\Models\ProduccionEventos\EventoTipo;
 use App\Services\LoggerPersonalizado;
 use Google_Client;
 use Google_Service_Sheets;
@@ -41,7 +42,7 @@ class MantenimientoTablasService
     protected $rangeCln_tiendaLocal_tb;
 
     protected $rangeCln_clienteVisitaTipo_tb;
-    
+    protected $rangeEVENTOS_TIPO;
     public function __construct()
     {
         $this->client = new Google_Client();
@@ -53,6 +54,7 @@ class MantenimientoTablasService
         $this->service = new Google_Service_Sheets($this->client); 
          
         $this->rangeCln_clienteVisitaTipo_tb = 'cln_clienteVisitaTipo_tb'; // Hoja electrónica
+        $this->rangeEVENTOS_TIPO = 'EVENTOS_TIPO'; // Hoja electrónica
     }
 
     public function fetchAndStoreData($spreadsheetId)
@@ -63,6 +65,7 @@ class MantenimientoTablasService
          */
          
         $this->importData(ClienteVisitaTipo::class, 'cvtpID', $this->rangeCln_clienteVisitaTipo_tb);
+        $this->importData(EventoTipo::class, 'eprtID', $this->rangeEVENTOS_TIPO);
     }
 
     public function importData($model, $primaryKey, $range)
