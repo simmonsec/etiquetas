@@ -156,7 +156,8 @@ class migrarDatosOdbc extends Command
         while ($retries < $maxRetries && !$success) {
             try {
                 //Log::info('Conexión existente a la base de datos ODBC.');
-
+                $logger->registrarEvento("Consulta: ". $sql);
+                
                 $result = odbc_exec($connection, $sql);
 
                 if (!$result) {
