@@ -7,6 +7,7 @@ use App\Services\ConexionPostgres;
 use App\Services\Conexion4k;
 use App\Models\GnlParametrosConsultasErpTb;
 use App\Models\InvtProductoMovimiento;
+use App\Services\LoggerPersonalizado;
 use DateTime;
 use Illuminate\Support\Facades\DB;
 
@@ -26,13 +27,15 @@ class migrarDatosOdbc extends Command
         //DB::statement('TRUNCATE TABLE "MBA3"."INVT_Producto_Movimientos"');
         //print_r('ELIMINAR DATOS DE LA TABLA INVT_Producto_Movimientos \n');
         //print_r("\n");
-
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'Gnl_Parametros_Consultas_ERP']);
         // Obtener datos para la conexión y ejecución
         $parametros = GnlParametrosConsultasErpTb::where('id', 16)->first();
         if ($parametros->d_comando) {
             print_r("Entro a eliminar datos. ");
             print_r("\n");
             Log::info("Entro a eliminar datos: {$parametros->d_comando}");
+            $logger->registrarEvento("INICIO: " );
+            $logger->registrarEvento("Entro a eliminar datos: " . $parametros->d_comando);
             DB::statement($parametros->d_comando);
         }
 
@@ -68,15 +71,17 @@ class migrarDatosOdbc extends Command
             // Eliminar ORDER BY si existe
             $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
 
-            $resultado = $this->consulta($connection4D, $q_comando_count);
+            $resultado = $this->consulta($connection4D, $q_comando_count, $logger);
             
         }
 
         if (!empty($resultado)) { 
             $cantidad = $resultado[0]["<expression>"];
             print_r("Cantidad de registros: " . $cantidad . "\n");
+            $logger->registrarEvento("Cantidad de registros: " . $cantidad . "\n");
         } else {
             print_r("No se obtuvieron resultados.");
+            $logger->registrarEvento("No se obtuvieron resultados.");
         }
 
         DB::beginTransaction();
@@ -87,11 +92,11 @@ class migrarDatosOdbc extends Command
                 $startTime = microtime(true);
 
                 $q_comandoPaginado = $q_comando . " LIMIT $batchSize OFFSET $offset";
-                $datos = $this->consulta($connection4D, $q_comandoPaginado);
+                $datos = $this->consulta($connection4D, $q_comandoPaginado,  $logger);
 
                 if (!empty($datos)) {
                     // Insertar datos por lotes en PostgreSQL
-                    $success = $this->insertarBatch($connectionPostgres, $i_comando, $datos);
+                    $success = $this->insertarBatch($connectionPostgres, $i_comando, $datos,  $logger);
 
                     if (!$success) {
                         throw new \Exception("Falló la inserción del batch");
@@ -105,6 +110,7 @@ class migrarDatosOdbc extends Command
                     }
                     print_r("Insertados: " . $offset . " DE $cantidad" . " Restan: " . $restante . "\n");
                     Log::info("Insertados: {$offset} DE {$cantidad} Restan: {$restante}");
+                    $logger->registrarEvento("Insertados: " . $offset . " DE $cantidad" . " Restan: " . $restante);
                     if ($restante < 1) {
                         break;
                     }
@@ -116,28 +122,31 @@ class migrarDatosOdbc extends Command
                 // Medir el tiempo de fin
                 $endTime = microtime(true);
                 $elapsedTime = $endTime - $startTime;
-
+                $logger->registrarEvento('Batch INSERT ejecutado exitosamente en ' . number_format($elapsedTime, 4) . ' segundos.');
                 Log::info('Batch INSERT ejecutado exitosamente en ' . number_format($elapsedTime, 4) . ' segundos.');
             }
 
             DB::commit();
             Log::info("Transacción completada y confirmada con éxito.");
-
+            $logger->registrarEvento("Transacción completada y confirmada con éxito.");
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error durante la migración: ' . $e->getMessage());
+            $logger->registrarEvento('Error durante la migración: ' . $e->getMessage());
             throw $e;
         }
 
         // Cerrar las conexiones después de terminar
-        $this->cerrarConexion($db4DService);
-        $this->cerrarConexion($dbPostgresService);
+        $this->cerrarConexion($db4DService, $logger);
+        $this->cerrarConexion($dbPostgresService, $logger);
 
         Log::info('Migración completada exitosamente.');
+        $logger->registrarEvento('Migración completada exitosamente.');
+        $logger->registrarEvento('FIN');
     }
 
 
-    public function consulta($connection, $sql)
+    public function consulta($connection, $sql, $logger)
     {
         $maxRetries = 3;
         $retries = 0;
@@ -152,6 +161,7 @@ class migrarDatosOdbc extends Command
 
                 if (!$result) {
                     throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
+                    $logger->registrarEvento("Error al ejecutar la consulta: ". odbc_errormsg($connection));
                 } else {
                     while ($row = odbc_fetch_array($result)) {
 
@@ -180,10 +190,11 @@ class migrarDatosOdbc extends Command
                 }
             } catch (\Exception $e) {
                 Log::warning("Excepción capturada: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-
+                $logger->registrarEvento("Excepción capturada: " . $e->getMessage() . " - Reintento". $retries ."de". $maxRetries);
                 $retries++;
                 if ($retries >= $maxRetries) {
                     Log::error("Error después de {$retries} intentos: " . $e->getMessage());
+                    $logger->registrarEvento("Error después de ".$retries ."intentos: " . $e->getMessage());
                     return [];
                 }
 
@@ -194,7 +205,7 @@ class migrarDatosOdbc extends Command
         return $results;
     }
 
-    public function insertarBatch($connection, $sql, $batch)
+    public function insertarBatch($connection, $sql, $batch,  $logger)
     {
         $maxRetries = 3;
         $retries = 0;
@@ -223,6 +234,7 @@ class migrarDatosOdbc extends Command
                     $result = odbc_exec($connection, $query);
                     if (!$result) {
                         throw new \Exception(odbc_errormsg($connection));
+                        $logger->registrarEvento(odbc_errormsg($connection));
                     }
 
 
@@ -231,9 +243,10 @@ class migrarDatosOdbc extends Command
                 } catch (\Exception $e) {
                     $retries++;
                     Log::warning("Error al ejecutar el INSERT: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-
+                    $logger->registrarEvento("Error al ejecutar el INSERT: " . $e->getMessage() . " - Reintento " .$retries ."de ". $maxRetries);
                     if ($retries >= $maxRetries) {
                         Log::error("Error después de {$retries} intentos: " . $e->getMessage());
+                        $logger->registrarEvento("Error después de {$retries} intentos: " . $e->getMessage());
                         return false;
                     }
 
@@ -242,17 +255,20 @@ class migrarDatosOdbc extends Command
             }
         } else {
             Log::error("No se pudo conectar a la base de datos ODBC.");
+            $logger->registrarEvento("No se pudo conectar a la base de datos ODBC.");
             return false;
         }
     }
 
 
-    private function cerrarConexion($dbService)
+    private function cerrarConexion($dbService, $logger)
     {
         $connection = $dbService->getConnection(); // Obtiene el recurso de conexión desde el servicio
         if ($connection) {
             odbc_close($connection); // Cierra la conexión ODBC
             Log::info('Conexión ODBC cerrada.');
+            $logger->registrarEvento('Conexión cerrada ODBC 4D Y POSTGRES .');
+           
         }
     }
 }
