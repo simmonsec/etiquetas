@@ -5,7 +5,7 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
+
 class Kernel extends ConsoleKernel
 {
     /** 
@@ -13,9 +13,9 @@ class Kernel extends ConsoleKernel
      * 
      * @var array 
      */
-    protected $commands = [
+    protected $commands = [ 
         'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros',
-        'App\Console\Commands\Migraciones\migrarDatosOdbc'
+         'App\Console\Commands\Migraciones\migrarDatosOdbc'
     ];
 
     /**
@@ -24,81 +24,57 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         /**
-         * Tarea 1: Inventario Terceros
-         * Se ejecuta cada 15 minutos. Después verifica si es tiempo de ejecutar la siguiente tarea.
+         * Inventario terceros
          */
         $schedule->command('inventario:terceros')
-            ->everyFifteenMinutes() // Ejecutar cada 15 minutos
+            ->everyFifteenMinutes()
             ->onOneServer()
             ->runInBackground()
-            ->withoutOverlapping()
-            ->after(function () {
-                // Verificar si es tiempo de ejecutar la tarea siguiente (migrar:odbc) cada 60 minutos
-                $this->checkNextExecution('migrar:odbc', 60);
-            });
-
+            ->withoutOverlapping();
+    
         /**
-         * Tarea 2: Migración del MBA a Postgres
-         * Se ejecuta cada hora, pero solo si ha pasado una hora desde la última ejecución.
+         * Migración del MBA a Postgres
          */
         $schedule->command('migrar:odbc')
-            ->hourly() // Ejecutar cada hora
+            ->hourly()
             ->onOneServer()
             ->runInBackground()
-            ->withoutOverlapping()
-            ->after(function () {
-                // Verificar si es tiempo de ejecutar la tarea siguiente (syncAppSheetPostgres:produccionEventos) cada 2 minutos
-                $this->checkNextExecution('syncAppSheetPostgres:produccionEventos', 2);
-            });
-
+            ->withoutOverlapping();
+    
         /**
-         * Tarea 3: Sincronización de Producción de Eventos con AppSheet y Postgres
-         * Se ejecuta cada 2 minutos, si corresponde.
+         * Aplicación de Producción Eventos
          */
         $schedule->command('syncAppSheetPostgres:produccionEventos')
-            ->everyTwoMinutes() // Ejecutar cada 2 minutos
+            ->everyTwoMinutes()
             ->onOneServer()
             ->runInBackground()
-            ->withoutOverlapping()
-            ->after(function () {
-                // Verificar si es tiempo de ejecutar la tarea siguiente (syncAppSheetPostgres:exhibicionVisita) cada minuto
-                $this->checkNextExecution('syncAppSheetPostgres:exhibicionVisita', 1);
-            });
-
+            ->withoutOverlapping();
+    
         /**
-         * Tarea 4: Sincronización de Visitas de Exhibiciones
-         * Se ejecuta cada minuto, si corresponde.
+         * Aplicación de Visitas de Exhibiciones
          */
         $schedule->command('syncAppSheetPostgres:exhibicionVisita')
-            ->everyMinute() // Ejecutar cada minuto
+            ->everyMinute()
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping();
+    
+        /**
+         * Mantenimientos, los cuales se encargan de sincronizar los datos entre Appsheet y Postgres
+         */
+        $schedule->command('mantenimiento:PostgresAppSheet')
+            ->everyFifteenMinutes()
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping();
+    
+        $schedule->command('mantenimiento:AppSheetPostgres')
+            ->everyFifteenMinutes()
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
     }
-
-    protected function checkNextExecution($command, $intervalInMinutes)
-    {
-        // Obtener la última vez que se ejecutó la tarea
-        $lastRun = cache()->get("last_run_{$command}");
-
-        Log::info("Última ejecución de {$command}: " . ($lastRun ? $lastRun->toDateTimeString() : 'Nunca'));
-
-        // Calcular si ha pasado el tiempo suficiente para la siguiente ejecución
-        if (!$lastRun || now()->diffInMinutes($lastRun) >= $intervalInMinutes) {
-            // Si es tiempo de ejecutar la siguiente tarea, la ejecuta
-            $exitCode = Artisan::call($command);
-
-            // Guardar la hora de ejecución en el cache para futuras verificaciones
-            cache()->put("last_run_{$command}", now());
-
-            // Registra el resultado del comando
-            Log::info("Ejecutado comando: {$command}, Código de salida: {$exitCode}");
-        } else {
-            Log::info("Comando {$command} no ejecutado. Última ejecución: {$lastRun}");
-        }
-    }
-
-
+    
 
     /**
      * Despacha un comando con un retraso.
@@ -119,7 +95,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands(): void
     {
-        $this->load(__DIR__ . '/Commands');
+        $this->load(__DIR__.'/Commands');
 
         require base_path('routes/console.php');
     }
