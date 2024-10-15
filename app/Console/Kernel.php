@@ -5,7 +5,7 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Artisan;
-
+use Illuminate\Support\Facades\Log;
 class Kernel extends ConsoleKernel
 {
     /** 
@@ -81,15 +81,23 @@ class Kernel extends ConsoleKernel
         // Obtener la última vez que se ejecutó la tarea
         $lastRun = cache()->get("last_run_{$command}");
 
+        Log::info("Última ejecución de {$command}: " . ($lastRun ? $lastRun->toDateTimeString() : 'Nunca'));
+
         // Calcular si ha pasado el tiempo suficiente para la siguiente ejecución
         if (!$lastRun || now()->diffInMinutes($lastRun) >= $intervalInMinutes) {
             // Si es tiempo de ejecutar la siguiente tarea, la ejecuta
-            Artisan::call($command);
+            $exitCode = Artisan::call($command);
 
             // Guardar la hora de ejecución en el cache para futuras verificaciones
             cache()->put("last_run_{$command}", now());
+
+            // Registra el resultado del comando
+            Log::info("Ejecutado comando: {$command}, Código de salida: {$exitCode}");
+        } else {
+            Log::info("Comando {$command} no ejecutado. Última ejecución: {$lastRun}");
         }
     }
+
 
 
     /**
