@@ -23,80 +23,74 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        //everyMinute//everyFifteenMinutes,everyTwentySeconds
-
         /**
-         * Tarea de Inventario Terceros.
-         * Realiza el recorrido de la cuenta de gosorio@simmos.com.ec para evaluar los correos con el asunto [STOCKTERCEROS].
-         * Se ejecuta cada 15 minutos, en una cola separada, sin bloquear otras tareas y sin superponerse.
+         * Tarea 1: Inventario Terceros
+         * Se ejecuta cada 15 minutos. Después verifica si es tiempo de ejecutar la siguiente tarea.
          */
         $schedule->command('inventario:terceros')
-            ->everyFifteenMinutes()
-            ->onOneServer() // Asegura que solo se ejecuta en un servidor
-            ->runInBackground() // Se ejecuta en segundo plano para no bloquear otras tareas
-            ->withoutOverlapping() // Evita que se ejecute si la tarea anterior aún no ha terminado
-            ->onQueue('inventario'); // Asigna la tarea a la cola 'inventario'
+            ->everyFifteenMinutes() // Ejecutar cada 15 minutos
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->after(function () {
+                // Verificar si es tiempo de ejecutar la tarea siguiente (migrar:odbc) cada 60 minutos
+                $this->checkNextExecution('migrar:odbc', 60);
+            });
 
         /**
-         * Tarea de Migración del MBA a Postgres.
-         * Migra muchos registros del sistema MBA al Postgres utilizando una consulta dinámica de la tabla de parámetros.
-         * Se ejecuta cada hora en segundo plano, sin superponerse, y en una cola separada.
+         * Tarea 2: Migración del MBA a Postgres
+         * Se ejecuta cada hora, pero solo si ha pasado una hora desde la última ejecución.
          */
         $schedule->command('migrar:odbc')
             ->hourly() // Ejecutar cada hora
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping()
-            ->onQueue('migracion'); // Asigna la tarea a la cola 'migracion'
+            ->after(function () {
+                // Verificar si es tiempo de ejecutar la tarea siguiente (syncAppSheetPostgres:produccionEventos) cada 2 minutos
+                $this->checkNextExecution('syncAppSheetPostgres:produccionEventos', 2);
+            });
 
         /**
-         * Sincronización de Producción de Eventos con AppSheet y Postgres.
-         * Se sincronizan los datos de la hoja electrónica de producción de eventos a la base de datos Postgres.
-         * Se ejecuta cada 2 minutos y, al finalizar, ejecuta una tarea secundaria después de 3 minutos.
+         * Tarea 3: Sincronización de Producción de Eventos con AppSheet y Postgres
+         * Se ejecuta cada 2 minutos, si corresponde.
          */
         $schedule->command('syncAppSheetPostgres:produccionEventos')
             ->everyTwoMinutes() // Ejecutar cada 2 minutos
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping()
-            ->onQueue('sync_produccion') // Asigna la tarea a la cola 'sync_produccion'
             ->after(function () {
-                // Ejecutar el segundo comando con un retraso de 3 minutos
-                $this->dispatchDelayedCommand('syncPostgresAppSheet:produccionEventos', 3); // Migración de datos de Postgres a la hoja electrónica
+                // Verificar si es tiempo de ejecutar la tarea siguiente (syncAppSheetPostgres:exhibicionVisita) cada minuto
+                $this->checkNextExecution('syncAppSheetPostgres:exhibicionVisita', 1);
             });
 
         /**
-         * Sincronización de Visitas de Exhibiciones.
-         * Se realiza la migración de las gestiones de visitas de exhibiciones a Postgres.
-         * Se ejecuta cada minuto, en segundo plano y sin superponerse.
+         * Tarea 4: Sincronización de Visitas de Exhibiciones
+         * Se ejecuta cada minuto, si corresponde.
          */
         $schedule->command('syncAppSheetPostgres:exhibicionVisita')
             ->everyMinute() // Ejecutar cada minuto
             ->onOneServer()
             ->runInBackground()
-            ->withoutOverlapping()
-            ->onQueue('sync_exhibiciones'); // Asigna la tarea a la cola 'sync_exhibiciones'
-
-        /**
-         * Mantenimiento de Sincronización entre Postgres y AppSheet.
-         * Sincroniza los datos desde Postgres a la hoja electrónica y viceversa.
-         * Cada 15 minutos se ejecutan las dos direcciones de sincronización.
-         */
-        $schedule->command('mantenimiento:PostgresAppSheet')
-            ->everyFifteenMinutes() // Desde Postgres hacia la hoja electrónica
-            ->onOneServer()
-            ->runInBackground()
-            ->withoutOverlapping()
-            ->onQueue('mantenimiento_psql_to_appsheet');
-
-        $schedule->command('mantenimiento:AppSheetPostgres')
-            ->everyFifteenMinutes() // Desde la hoja electrónica hacia Postgres
-            ->onOneServer()
-            ->runInBackground()
-            ->withoutOverlapping()
-            ->onQueue('mantenimiento_appsheet_to_psql');
-
+            ->withoutOverlapping();
     }
+
+    protected function checkNextExecution($command, $intervalInMinutes)
+    {
+        // Obtener la última vez que se ejecutó la tarea
+        $lastRun = cache()->get("last_run_{$command}");
+
+        // Calcular si ha pasado el tiempo suficiente para la siguiente ejecución
+        if (!$lastRun || now()->diffInMinutes($lastRun) >= $intervalInMinutes) {
+            // Si es tiempo de ejecutar la siguiente tarea, la ejecuta
+            Artisan::call($command);
+
+            // Guardar la hora de ejecución en el cache para futuras verificaciones
+            cache()->put("last_run_{$command}", now());
+        }
+    }
+
 
     /**
      * Despacha un comando con un retraso.
