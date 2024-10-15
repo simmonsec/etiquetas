@@ -217,7 +217,7 @@ class PostgresAppSheetService
                     registros_faltantes
                 ORDER BY 
                     "nov_colID", 
-                    "nov_prevc_inicio_fecha"; 
+                    "nov_prevc_inicio_fecha" 
     
             )
     ');
