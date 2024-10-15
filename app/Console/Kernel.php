@@ -13,9 +13,9 @@ class Kernel extends ConsoleKernel
      * 
      * @var array 
      */
-    protected $commands = [ 
+    protected $commands = [
         'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros',
-         'App\Console\Commands\Migraciones\migrarDatosOdbc'
+        'App\Console\Commands\Migraciones\migrarDatosOdbc'
     ];
 
     /**
@@ -24,41 +24,78 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         //everyMinute//everyFifteenMinutes,everyTwentySeconds
-        
-        /**
-         * Inventario terceros
-         */
-        $schedule->command('inventario:terceros')->everyFifteenMinutes(); // Realiza el recorrido de la cuenta de gosorio@simmos.com.ec para evaluar los correos con el asunto [STOCKTERCEROS]
-        
-        /**
-         * Migracion del MBA a Postgres
-         */
-        $schedule->command('migrar:odbc')->hourly();// Migración de muchos registros del carde del MBA para el postgres, utiliza la logica de las consuta dinamica de la tabla de parametros. 
-        
-        /**
-         * Aplicacción de Produccion Eventos
-         */
-        
-        $schedule->command('syncAppSheetPostgres:produccionEventos')//Se migran los datos de la hoja electrónica a postgres
-        ->everyTwoMinutes()
-        ->withoutOverlapping()
-        ->after(function () {
-            // Ejecutar el segundo comando con un retraso de 3 minutos
-            $this->dispatchDelayedCommand('syncPostgresAppSheet:produccionEventos', 3); // Se realizá la migración de los datos de las gestiones formateadas a la hoja electronica
-        });
 
         /**
-         * Aplicación de Visitas de Exhibiciones
+         * Tarea de Inventario Terceros.
+         * Realiza el recorrido de la cuenta de gosorio@simmos.com.ec para evaluar los correos con el asunto [STOCKTERCEROS].
+         * Se ejecuta cada 15 minutos, en una cola separada, sin bloquear otras tareas y sin superponerse.
          */
-        
-        $schedule->command('syncAppSheetPostgres:exhibicionVisita')->everyMinute();// Se realiza la migración de las gestiones a postgres
+        $schedule->command('inventario:terceros')
+            ->everyFifteenMinutes()
+            ->onOneServer() // Asegura que solo se ejecuta en un servidor
+            ->runInBackground() // Se ejecuta en segundo plano para no bloquear otras tareas
+            ->withoutOverlapping() // Evita que se ejecute si la tarea anterior aún no ha terminado
+            ->onQueue('inventario'); // Asigna la tarea a la cola 'inventario'
 
-            /**
-             * Mantenimientos, los cuales se encargan de realizar la sigcronizacion de los datos entre Appsheet y Postgres
-             */
-            $schedule->command('mantenimiento:PostgresAppSheet')->everyFifteenMinutes(); // Desde Postgres a la Hoja electrónica
-            $schedule->command('mantenimiento:AppSheetPostgres')->everyFifteenMinutes(); // Desde la Hoja electrónica a Postgres
-    
+        /**
+         * Tarea de Migración del MBA a Postgres.
+         * Migra muchos registros del sistema MBA al Postgres utilizando una consulta dinámica de la tabla de parámetros.
+         * Se ejecuta cada hora en segundo plano, sin superponerse, y en una cola separada.
+         */
+        $schedule->command('migrar:odbc')
+            ->hourly() // Ejecutar cada hora
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onQueue('migracion'); // Asigna la tarea a la cola 'migracion'
+
+        /**
+         * Sincronización de Producción de Eventos con AppSheet y Postgres.
+         * Se sincronizan los datos de la hoja electrónica de producción de eventos a la base de datos Postgres.
+         * Se ejecuta cada 2 minutos y, al finalizar, ejecuta una tarea secundaria después de 3 minutos.
+         */
+        $schedule->command('syncAppSheetPostgres:produccionEventos')
+            ->everyTwoMinutes() // Ejecutar cada 2 minutos
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onQueue('sync_produccion') // Asigna la tarea a la cola 'sync_produccion'
+            ->after(function () {
+                // Ejecutar el segundo comando con un retraso de 3 minutos
+                $this->dispatchDelayedCommand('syncPostgresAppSheet:produccionEventos', 3); // Migración de datos de Postgres a la hoja electrónica
+            });
+
+        /**
+         * Sincronización de Visitas de Exhibiciones.
+         * Se realiza la migración de las gestiones de visitas de exhibiciones a Postgres.
+         * Se ejecuta cada minuto, en segundo plano y sin superponerse.
+         */
+        $schedule->command('syncAppSheetPostgres:exhibicionVisita')
+            ->everyMinute() // Ejecutar cada minuto
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onQueue('sync_exhibiciones'); // Asigna la tarea a la cola 'sync_exhibiciones'
+
+        /**
+         * Mantenimiento de Sincronización entre Postgres y AppSheet.
+         * Sincroniza los datos desde Postgres a la hoja electrónica y viceversa.
+         * Cada 15 minutos se ejecutan las dos direcciones de sincronización.
+         */
+        $schedule->command('mantenimiento:PostgresAppSheet')
+            ->everyFifteenMinutes() // Desde Postgres hacia la hoja electrónica
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onQueue('mantenimiento_psql_to_appsheet');
+
+        $schedule->command('mantenimiento:AppSheetPostgres')
+            ->everyFifteenMinutes() // Desde la hoja electrónica hacia Postgres
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping()
+            ->onQueue('mantenimiento_appsheet_to_psql');
+
     }
 
     /**
@@ -80,7 +117,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands(): void
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }
