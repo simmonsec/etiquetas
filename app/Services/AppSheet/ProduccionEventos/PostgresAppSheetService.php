@@ -172,10 +172,9 @@ class PostgresAppSheetService
         )
             
         UNION(
-
-
+ 
                 WITH dias_faltantes AS (
-                    -- 1. Obtener todas las combinaciones posibles de colaboradores activos y días de jornadas
+                    -- 1. Obtener todas las combinaciones posibles de colaboradores activos y días
                     SELECT 
                         col."colID", 
                         fecha."dim_fecha",
@@ -183,10 +182,14 @@ class PostgresAppSheetService
                     FROM 
                         "Simmons01".prod_app_colaboradores_tb col
                     CROSS JOIN 
-                        (SELECT "dim_fecha", "dimDateint" 
-                        FROM "Simmons01"."gnl_dimensionFecha_tb" 
-                        WHERE "dim_fechamanejoproduccion" = \'NO\' 
-                        AND "dim_fecha" BETWEEN \'2024-09-01\' AND CURRENT_DATE) fecha
+                        (
+                            SELECT "dim_fecha", "dimDateint" 
+                            FROM "Simmons01"."gnl_dimensionFecha_tb" 
+                            WHERE "dim_fechamanejoproduccion" = \'NO\' 
+                            AND "dim_fecha" BETWEEN 
+                                date_trunc(\'month\', CURRENT_DATE - interval \'1 month\') AND 
+                                CURRENT_DATE  -- Desde el primer día del mes caído hasta hoy
+                        ) fecha
                     WHERE 
                         col."col_estado" = \'A\'  -- Solo colaboradores activos
                 ),
@@ -205,9 +208,16 @@ class PostgresAppSheetService
                         prod."prevc_colID" IS NULL  -- Solo filas donde no hay registro de jornada
                 )
                 -- 3. Mostrar los resultados
-                SELECT  nov_prevc_inicio_fecha, "nov_colID",1 AS "nov_eprtID",CONCAT(\'El colaborador no ha registrado ningún evento para la fecha. \',nov_prevc_inicio_fecha) as comentario
-                FROM registros_faltantes
-                ORDER BY "nov_colID", "nov_prevc_inicio_fecha"
+                SELECT  
+                    nov_prevc_inicio_fecha, 
+                    "nov_colID",
+                    1 AS "nov_eprtID",
+                    CONCAT(\'El colaborador no ha registrado ningún evento para la fecha: \', nov_prevc_inicio_fecha) AS comentario
+                FROM 
+                    registros_faltantes
+                ORDER BY 
+                    "nov_colID", 
+                    "nov_prevc_inicio_fecha"; 
     
             )
     ');
@@ -289,7 +299,7 @@ class PostgresAppSheetService
             INNER JOIN
                 "Simmons01"."prod_app_colaboradores_tb" T2 ON T1."prevc_colID" = T2."colID"
             WHERE
-                T1."prevc_eprtID" NOT IN (101,102)
+                T1.prevc_inicio_fecha >= CURRENT_DATE - INTERVAL \'7 days\' -- Filtra los registros de la última semana
         )
         SELECT
             "prevc_colID",
