@@ -186,9 +186,10 @@ class PostgresAppSheetService
                             SELECT "dim_fecha", "dimDateint" 
                             FROM "Simmons01"."gnl_dimensionFecha_tb" 
                             WHERE "dim_fechamanejoproduccion" = \'NO\' 
-                            AND "dim_fecha" BETWEEN 
-                                date_trunc(\'month\', CURRENT_DATE - interval \'1 month\') AND 
-                                CURRENT_DATE  -- Desde el primer día del mes caído hasta hoy
+                           AND "dim_fecha" BETWEEN 
+                            date_trunc(\'month\', CURRENT_DATE - interval \'1 month\') 
+                            AND CURRENT_DATE - interval \'1 day\' -- Hasta el día de ayer
+
                         ) fecha
                     WHERE 
                         col."col_estado" = \'A\'  -- Solo colaboradores activos
@@ -293,7 +294,10 @@ class PostgresAppSheetService
                 T1.prevc_inicio_fecha as col_evento_fecha_ref,
                 T1."prevc_secID" as col_ult_seccion_ref,
                 T1.prevc_inicio_hora as col_evento_hora_ref,
-                ROW_NUMBER() OVER (PARTITION BY T1."prevc_colID" ORDER BY T1.prevc_inicio_fecha DESC, T1.prevc_inicio_hora DESC) AS rn
+                ROW_NUMBER() OVER (
+                    PARTITION BY T1."prevc_colID" 
+                    ORDER BY T1.prevc_inicio_fecha DESC, T1.prevc_inicio_hora DESC, T1."prevcID" DESC
+                ) AS rn
             FROM
                 "Simmons01"."prod_app_produccionEventoColab_tb" T1
             INNER JOIN
