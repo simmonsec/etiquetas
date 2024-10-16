@@ -58,6 +58,14 @@ class Kernel extends ConsoleKernel
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
+        /**
+         * Sincronizar datos de eventos de produccion y novedades
+         */
+        $schedule->command('syncPostgresAppSheet:produccionEventos')
+            ->everyFifteenMinutes()
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping();
     
         /**
          * Mantenimientos, los cuales se encargan de sincronizar los datos entre Appsheet y Postgres
