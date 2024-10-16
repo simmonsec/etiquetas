@@ -62,7 +62,7 @@ class Kernel extends ConsoleKernel
          * Sincronizar datos de eventos de produccion y novedades
          */
         $schedule->command('syncPostgresAppSheet:produccionEventos')
-            ->everyFifteenMinutes()
+            ->everyThreeMinutes()
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
