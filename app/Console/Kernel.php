@@ -45,7 +45,7 @@ class Kernel extends ConsoleKernel
          * Aplicación de Producción Eventos
          */
         $schedule->command('syncAppSheetPostgres:produccionEventos')
-            ->everyTwoMinutes()
+            ->everyMinute()
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
@@ -54,7 +54,7 @@ class Kernel extends ConsoleKernel
          * Aplicación de Visitas de Exhibiciones
          */
         $schedule->command('syncAppSheetPostgres:exhibicionVisita')
-            ->everyMinute()
+            ->everyTwoMinutes()
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
