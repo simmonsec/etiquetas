@@ -67,14 +67,14 @@ class GnlMigrarDatosOdbc extends Command
             // Ejecuta la consulta para obtener la cantidad
             if ($q_comando) {
                 // Remplazar la lista de columnas por COUNT(*)
-                $q_comando_count = preg_replace('/SELECT\s+.*\s+FROM/s', 'SELECT COUNT(*) FROM', $q_comando);
+                $q_comando_count = preg_replace('/SELECT\s+.*\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
                 // Eliminar ORDER BY si existe
 
                 $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
                 $resultado = $this->consulta($connection4D, $q_comando_count);
 
             }
-            log::info($resultado);
+            // log::info($resultado);
 
             if (!empty($resultado)) {
                 $cantidad = $resultado[0]["<expression>"] ?? count($resultado);
@@ -108,7 +108,7 @@ class GnlMigrarDatosOdbc extends Command
                                     }
                                 }
                             }
-                            log::info($datos);
+                            //log::info($datos);
 
                             $success = $this->insertarBatch($connectionPostgres, $i_comando, $datos);
 
@@ -167,9 +167,7 @@ class GnlMigrarDatosOdbc extends Command
         
         while ($retries < $maxRetries && !$success) {
             try {
-                Log::info($connection);
-                Log::info($sql);
-
+                 
                 $result = odbc_exec($connection, $sql);
 
                 if (!$result) {
