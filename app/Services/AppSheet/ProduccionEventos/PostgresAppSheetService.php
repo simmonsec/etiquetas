@@ -135,7 +135,8 @@ class PostgresAppSheetService
         (
             -- Consulta para identificar colaboradores que han iniciado jornada pero no han registrado el cierre de jornada.
             -- Incluye aquellos cuyo evento de cierre de jornada (tipo 100) no ha sido registrado en la fecha actual.
-            SELECT MAX(T1.prevc_inicio_fecha) AS nov_prevc_inicio_fecha, 
+            SELECT T1.prevc_inicio_fecha AS nov_prevc_inicio_fecha,
+            -- MAX(T1.prevc_inicio_fecha) AS nov_prevc_inicio_fecha, 
                    T2."colID" as "nov_colID", 
                    100 AS "nov_eprtID", 
                    \'No se ha registrado el evento de cierre de jornada para este colaborador en la fecha especificada.\' as comentario
@@ -150,7 +151,7 @@ class PostgresAppSheetService
             )
             AND T1.prevc_inicio_fecha < CURRENT_DATE 
             AND T1."prevc_eprtID" <> 19
-            GROUP BY T2."colID"
+            -- GROUP BY T2."colID"
         )
         UNION
         (
