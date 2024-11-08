@@ -27,7 +27,7 @@ class Kernel extends ConsoleKernel
          * Inventario terceros
          */
         $schedule->command('inventario:terceros')
-            ->everyFifteenMinutes()
+            ->everyThirtyMinutes() // Mantener cada 30 minutos para reducir la carga
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
@@ -36,7 +36,7 @@ class Kernel extends ConsoleKernel
          * Migración del MBA a Postgres
          */
         $schedule->command('migrar:odbc')
-            ->hourly()
+            ->hourly() // Mantener cada hora
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
@@ -45,7 +45,7 @@ class Kernel extends ConsoleKernel
          * Aplicación de Producción Eventos
          */
         $schedule->command('syncAppSheetPostgres:produccionEventos')
-            ->everyTwoMinutes()
+            ->everyTwoMinutes() // Mantener cada 2 minutos para alta frecuencia
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
@@ -54,34 +54,36 @@ class Kernel extends ConsoleKernel
          * Aplicación de Visitas de Exhibiciones
          */
         $schedule->command('syncAppSheetPostgres:exhibicionVisita')
-            ->everyMinute()
-            ->onOneServer()
-            ->runInBackground()
-            ->withoutOverlapping();
-        /**
-         * Sincronizar datos de eventos de produccion y novedades
-         */
-        $schedule->command('syncPostgresAppSheet:produccionEventos')
-            ->everyThreeMinutes()
+            ->everyTenMinutes() // Ajustado a cada 10 minutos para reducir carga
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
     
         /**
-         * Mantenimientos, los cuales se encargan de sincronizar los datos entre Appsheet y Postgres
+         * Sincronizar datos de eventos de produccion y novedades
+         */
+        $schedule->command('syncPostgresAppSheet:produccionEventos')
+            ->everyFiveMinutes() // Ajustado a cada 5 minutos para sincronización frecuente
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping();
+    
+        /**
+         * Mantenimientos, los cuales se encargan de sincronizar los datos entre AppSheet y Postgres
          */
         $schedule->command('mantenimiento:PostgresAppSheet')
-            ->everyFifteenMinutes()
+            ->hourly() // Cambiado a cada hora
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
     
         $schedule->command('mantenimiento:AppSheetPostgres')
-            ->everyFifteenMinutes()
+            ->hourly() // Cambiado a cada hora
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
     }
+    
     
 
     /**
