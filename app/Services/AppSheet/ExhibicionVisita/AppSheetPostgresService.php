@@ -48,8 +48,43 @@ class AppSheetPostgresService
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
 
         try {
+            $retries = 0;
+            $maxRetries = 3;
+            $delay = 5; // segundos
+            $responseClienteVisita =null;
+            while ($retries < $maxRetries) {
+                try {
+                    $responseClienteVisita = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeClienteVisita);
+                    // Si la solicitud tiene éxito, salimos del bucle.
+                    break;
+                } catch (\Google_Service_Exception $e) {
+                    if ($e->getCode() == 429) {
+                        // Error de cuota alcanzada, esperamos y reintentamos
+                        sleep($delay);
+                        $retries++;
+                        continue;
+                    } else {
+                        // Otros errores deben manejarse de otra manera
+                        throw $e;
+                    }
+                }
+            }
+
+            if ($retries === $maxRetries) {
+                // Manejo de error en caso de que se superen los intentos de reintento
+                $logger->registrarEvento('Se superó el número máximo de reintentos para acceder a la API de Google Sheets.');
+                Log::error('Se superó el número máximo de reintentos para acceder a la API de Google Sheets.');
+            }
+
+            // Verificar si $responseClienteVisita es null después de los reintentos
+            if (is_null($responseClienteVisita)) {
+                $logger->registrarEvento('No se pudo obtener respuesta de la API de Google Sheets después de varios intentos.');
+                Log::error('No se pudo obtener respuesta de la API de Google Sheets después de varios intentos.');
+                return;  // Terminar ejecución si no se obtuvo respuesta
+            }
+
             // Clientes visitas
-            $responseClienteVisita = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeClienteVisita);
+
             $valuesClienteVisita = $responseClienteVisita->getValues();
 
             if (empty($valuesClienteVisita)) {
@@ -61,7 +96,7 @@ class AppSheetPostgresService
             // Asume que la primera fila son las cabeceras
             $headersClienteVisita = array_shift($valuesClienteVisita);
             $logger->registrarEvento('Cabeceras de Cliente Visita: ' . json_encode($headersClienteVisita));
-            Log::info('Cabeceras de Cliente Visita: ' . json_encode($headersClienteVisita));
+            //Log::info('Cabeceras de Cliente Visita: ' . json_encode($headersClienteVisita));
 
             foreach ($valuesClienteVisita as $row) {
                 // Asegúrate de que la fila tenga el mismo número de columnas que las cabeceras
@@ -74,7 +109,7 @@ class AppSheetPostgresService
                 // Mapear los datos a un array asociativo usando las cabeceras
                 $dataClienteVisita = array_combine($headersClienteVisita, $row);
 
-                Log::info('Datos de Cliente Visita: ' . json_encode($dataClienteVisita));
+                //Log::info('Datos de Cliente Visita: ' . json_encode($dataClienteVisita));
 
                 // Filtrar solo las filas que tienen preve_estado = 'N'
                 if (isset($dataClienteVisita['clvt_estado_bd']) && $dataClienteVisita['clvt_estado_bd'] === 'N') {
@@ -115,6 +150,8 @@ class AppSheetPostgresService
                         /**
                          * Exhibiciones 
                          * **/
+                        Log::info("--------------------------------------------------------------");
+                        Log::info('ClienteVisitaID: ' . $clienteVisita->clvtID);
                         $this->saveExhibicion($clienteVisita->clvtID);
 
                         // Actualizar la visita migrada
@@ -122,8 +159,8 @@ class AppSheetPostgresService
                         // Guardar el modelo en la base de datos
                         $clienteVisita->save();
 
-                        $logger->registrarEvento('Cliente Visita guardado exitosamente: ' . $clienteVisita->clvtID);
-                        Log::info('Cliente Visita guardado exitosamente: ' . $clienteVisita->clvtID);
+                        $logger->registrarEvento('Cliente Visita guardado exitosamente, ID: ' . $clienteVisita->clvtID);
+                        Log::info('ClienteVisitaID Guardada: ' . $clienteVisita->clvtID);
 
                     } catch (\Throwable $e) {
                         $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
@@ -146,12 +183,45 @@ class AppSheetPostgresService
     {
         // Inicializar el logger personalizado
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetVisitasExhibiciones']);
-
+        
         /**
          * Exhibiciones 
          */
         try {
-            $responseExhibicion = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeExhibicion);
+            $retries = 0;
+            $maxRetries = 3;
+            $delay = 5; // segundos
+            $responseExhibicion = null;
+            while ($retries < $maxRetries) {
+                try {
+                    $responseExhibicion = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeExhibicion);
+                    // Si la solicitud tiene éxito, salimos del bucle.
+                    break;
+                } catch (\Google_Service_Exception $e) {
+                    if ($e->getCode() == 429) {
+                        // Error de cuota alcanzada, esperamos y reintentamos
+                        sleep($delay);
+                        $retries++;
+                        continue;
+                    } else {
+                        // Otros errores deben manejarse de otra manera
+                        throw $e;
+                    }
+                }
+            }
+            if ($retries === $maxRetries) {
+                // Manejo de error en caso de que se superen los intentos de reintento
+                $logger->registrarEvento('Se superó el número máximo de reintentos para acceder a la API de Google Sheets.');
+                Log::error('Se superó el número máximo de reintentos para acceder a la API de Google Sheets.');
+            }
+
+            // Verificar si $responseClienteVisita es null después de los reintentos
+            if (is_null($responseExhibicion)) {
+                $logger->registrarEvento('No se pudo obtener respuesta de la API de Google Sheets después de varios intentos.');
+                Log::error('No se pudo obtener respuesta de la API de Google Sheets después de varios intentos.');
+                return;  // Terminar ejecución si no se obtuvo respuesta
+            }
+
             $valuesExhibicion = $responseExhibicion->getValues();
 
             if (empty($valuesExhibicion)) {
@@ -163,7 +233,7 @@ class AppSheetPostgresService
             // Asume que la primera fila son las cabeceras
             $headersExhibicion = array_shift($valuesExhibicion);
             $logger->registrarEvento('Cabeceras de Exhibicion: ' . json_encode($headersExhibicion));
-            Log::info('Cabeceras de Exhibicion: ' . json_encode($headersExhibicion));
+            //Log::info('Cabeceras de Exhibicion: ' . json_encode($headersExhibicion));
 
             foreach ($valuesExhibicion as $row) {
                 // Asegúrate de que la fila tenga el mismo número de columnas que las cabeceras
@@ -211,15 +281,17 @@ class AppSheetPostgresService
                         } else {
                             $VtaExhibicion->updated_at = null;
                         }
-
+                        
+                        Log::info('ExhibiciónID: ' . $VtaExhibicion->cveaID);
+                        Log::info("-----------------");
                         // Llamar al método para guardar el detalle de la exhibición
                         $this->saveExhibicionDetalle($VtaExhibicion->cveaID);
                         // Guardar el modelo en la base de datos
                         $VtaExhibicion->save();
 
-                        $logger->registrarEvento('Exhibición guardada exitosamente: ' . $VtaExhibicion->cveaID);
-                        Log::info('Exhibición guardada exitosamente: ' . $VtaExhibicion->cveaID);
-
+                        $logger->registrarEvento('Exhibición guardada exitosamente, ID : ' . $VtaExhibicion->cveaID);
+                        Log::info('ExhibiciónID Gurdada : ' . $VtaExhibicion->cveaID);
+                       
                     } catch (\Throwable $e) {
                         $logger->registrarEvento('Ocurrió un error inesperado al guardar la exhibición: ' . $e->getMessage());
                         Log::error('Ocurrió un error inesperado al guardar la exhibición: ' . $e->getMessage());
@@ -242,18 +314,57 @@ class AppSheetPostgresService
         /**
          * Exhibiciones Detalles
          * */
+        $retries = 0;
+        $maxRetries = 3;
+        $delay = 5; // segundos
+        $responseExhibicionDetalle =null;
+        while ($retries < $maxRetries) {
+            try {
+                $responseExhibicionDetalle = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeExhibicionDetalle);
+                // Si la solicitud tiene éxito, salimos del bucle.
+                break;
+            } catch (\Google_Service_Exception $e) {
+                if ($e->getCode() == 429) {
+                    // Error de cuota alcanzada, esperamos y reintentamos
+                    sleep($delay);
+                    $retries++;
+                    continue;
+                } else {
+                    // Otros errores deben manejarse de otra manera
+                    throw $e;
+                }
+            }
+        }
 
-        $responseExhibicionDetalle = $this->service->spreadsheets_values->get($this->spreadsheetId, $this->rangeExhibicionDetalle);
+        if ($retries === $maxRetries) {
+            // Manejo de error en caso de que se superen los intentos de reintento
+            $logger->registrarEvento('Se superó el número máximo de reintentos para acceder a la API de Google Sheets.');
+            Log::error('Se superó el número máximo de reintentos para acceder a la API de Google Sheets.');
+        }
+        // Verificar si $responseClienteVisita es null después de los reintentos
+        if (is_null($responseExhibicionDetalle)) {
+            $logger->registrarEvento('No se pudo obtener respuesta de la API de Google Sheets después de varios intentos.');
+            Log::error('No se pudo obtener respuesta de la API de Google Sheets después de varios intentos.');
+            return;  // Terminar ejecución si no se obtuvo respuesta
+        }
         $valuesExhibicionDetalle = $responseExhibicionDetalle->getValues();
 
         // Asume que la primera fila son las cabeceras
         $headersExhibicionDetalle = array_shift($valuesExhibicionDetalle);
         try {
             foreach ($valuesExhibicionDetalle as $row) {
-                // Asegúrate de que la fila tenga el mismo número de columnas que las cabeceras
+
+                // Verificar si el número de columnas coincide con los encabezados
                 if (count($row) !== count($headersExhibicionDetalle)) {
-                    Log::error('Número de columnas en la fila no coincide con el número de cabeceras. VtaExhibicionDetalle');
-                    continue;
+                    // Detectar columnas vacías
+                    foreach ($headersExhibicionDetalle as $index => $header) {
+                        $value = $row[$index] ?? null; // Si no existe la columna, será null
+                        if (empty($value)) {
+                            Log::warning("Columna vacía detectada: $header en la fila con valores: " . implode(", ", $row));
+
+                        }
+                    }
+                    continue; // Omitir la fila si el conteo de columnas no coincide
                 }
 
                 // Mapear los datos a un array asociativo usando las cabeceras
@@ -275,8 +386,10 @@ class AppSheetPostgresService
                         $VtaExhibicionDetalle->cvead_caras = $dataExhibicionDetalle['cvead_caras'] ?? 0;
                         $VtaExhibicionDetalle->cvead_tipo = $dataExhibicionDetalle['cvead_tipo'] ?? 'VENTA';
                         // Guardar el modelo en la base de datos
+                        Log::info('DetalleID: ' . $VtaExhibicionDetalle->cveadID);
                         $VtaExhibicionDetalle->save();
-
+                        Log::info(message: "DetalleID Guardada: $VtaExhibicionDetalle->cveadID");
+                        Log::info("-----------------");
                     } catch (\Throwable $e) {
                         Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
                         $logger->registrarEvento('Ocurrió un error inesperado al guardar el detalle de la exhibición: ' . $e->getMessage());
@@ -284,7 +397,7 @@ class AppSheetPostgresService
                 }
 
 
-            }
+            } 
         } catch (\Exception $e) {
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
             $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
