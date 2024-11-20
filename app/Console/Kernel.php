@@ -34,13 +34,13 @@ class Kernel extends ConsoleKernel
     
         /**
          * Migración del MBA a Postgres
-         */
+         
         $schedule->command('migrar:odbc')
             ->hourly() // Mantener cada hora
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
-    
+    */
         /**
          * Aplicación de Producción Eventos
          */
