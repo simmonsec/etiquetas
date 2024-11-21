@@ -248,8 +248,8 @@ class GnlMigrarDatosOdbc extends Command
         if ($q_comando) {
             try {
                 // Intentar ejecutar la consulta COUNT
-                //$q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
-                $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
+                $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
+                //$q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
                 $q_comando_count = preg_replace('/ORDER BY .*/i', '', $q_comando_count);
                 print_r($q_comando_count);
                 
@@ -278,8 +278,8 @@ class GnlMigrarDatosOdbc extends Command
                     Log::warning("Error ejecutando consulta COUNT: " . $e->getMessage());
                     
                     // Intentar la consulta alternativa
-                   // $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
-                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
+                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
+                    //$q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
                     $q_comando_count = preg_replace('/ORDER BY .*/i', '', $q_comando_count);
                     print_r($q_comando_count);
         
@@ -377,17 +377,31 @@ class GnlMigrarDatosOdbc extends Command
 
 
                         $camposDeseadosFlipped = array_flip($camposDeseados);
+                        if($parametro->c_crearTabla){
 
-                        $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
-                            // Convertir claves del registro a minúsculas
-                            $registroLowercaseKeys = array_change_key_case($registro, CASE_LOWER);
-
-                            // Convertir claves de los campos deseados a minúsculas
-                            $camposDeseadosLowercase = array_change_key_case($camposDeseadosFlipped, CASE_LOWER);
-
-                            // Filtrar los campos deseados
-                            return array_intersect_key($registroLowercaseKeys, $camposDeseadosLowercase);
-                        }, $datos);
+                            $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
+                                // Convertir claves del registro a minúsculas
+                                $registroLowercaseKeys = array_change_key_case($registro, CASE_LOWER);
+                                
+                                // Convertir claves de los campos deseados a minúsculas
+                                $camposDeseadosLowercase = array_change_key_case($camposDeseadosFlipped, CASE_LOWER);
+                                
+                                // Filtrar los campos deseados
+                                return array_intersect_key($registroLowercaseKeys, $camposDeseadosLowercase);
+                            }, $datos);
+                        }else{
+                            
+                            $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
+                                // Convertir claves del registro a minúsculas
+                                $registroLowercaseKeys = array_change_key_case($registro);
+                                
+                                // Convertir claves de los campos deseados a minúsculas
+                                $camposDeseadosLowercase = array_change_key_case($camposDeseadosFlipped);
+                                
+                                // Filtrar los campos deseados
+                                return array_intersect_key($registroLowercaseKeys, $camposDeseadosLowercase);
+                            }, $datos);
+                        }
 
 
 
