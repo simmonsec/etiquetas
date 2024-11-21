@@ -247,11 +247,16 @@ class GnlMigrarDatosOdbc extends Command
         // Ejecutar consulta para contar registros 
         if ($q_comando) {
             try {
-                // Intenta de nuevo con SELECT * eliminando ORDER BY
-                $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
+                if (count($camposDeseados)>30) {
+                    // Intenta de nuevo con SELECT * eliminando ORDER BY
+                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
+                }else{
+                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
+                }
+               
                 $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
                 $q_comando_count = preg_replace('/order by .*/', '', $q_comando_count);
-                $q_comando_count = "SELECT count(*) FROM INVT_Producto_Movimientos WHERE CONFIRM=TRUE AND TRANS_DATE >'2024/01/01' AND TRANS_DATE<'2025/01/01'";
+               // $q_comando_count = "SELECT count(*) FROM INVT_Producto_Movimientos WHERE CONFIRM=TRUE AND TRANS_DATE >'2024/01/01' AND TRANS_DATE<'2025/01/01'";
             
                 print_r($q_comando_count);
                 // Ejecuta la consulta de conteo
@@ -341,7 +346,7 @@ class GnlMigrarDatosOdbc extends Command
 
                         $camposDeseadosFlipped = array_flip($camposDeseados);
                         if ($parametro->c_crearTabla) {
-                            print_r("La tabla se está creando");
+                           // print_r("La tabla se está creando");
                             $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
                                 // Convertir las claves de los campos del registro a minúsculas
                                 $registroLowercaseKeys = array_change_key_case($registro, CASE_LOWER);
@@ -357,7 +362,7 @@ class GnlMigrarDatosOdbc extends Command
                             }, $datos);
 
                         } else {
-                            print_r("La tabla ya fue creada");
+                           // print_r("La tabla ya fue creada");
 
                             // No transformar los datos, traerlos tal cual
                             $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
