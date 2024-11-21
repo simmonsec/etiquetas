@@ -336,13 +336,13 @@ class GnlMigrarDatosOdbc extends Command
             print_r("No se obtuvieron resultados.\n");
             Log::warning("No se obtuvieron resultados para el parámetro ID: {$parametro->id}");
 
-            //Actualizar cantidad de registros encontrados
-            if ($cantidad > 0) {
-                GnlParametrosConsultasErpTb::where('id', $parametro->id)->update(['cant_encontrados' => $cantidad]);
-            }
+         
         }
      
-
+        //Actualizar cantidad de registros encontrados
+        if ($cantidad > 0) {
+            GnlParametrosConsultasErpTb::where('id', $parametro->id)->update(['cant_encontrados' => $cantidad]);
+        }
         // si la cantidad de campos a consultar y insertar es mayor de 30 entonces insertamos y consultamos lotes de 300 si no  entoces de 1000
         $elementCount = count($camposDeseados); // Cuenta los elementos del array
         if ($elementCount > 30 && $elementCount < 200) {
@@ -485,7 +485,7 @@ class GnlMigrarDatosOdbc extends Command
         GnlParametrosConsultasErpTb::where('id', $parametro->id)
             ->update([
                 'tiempo_ejecucion' => '00:00:00',
-                //'cant_encontrados' => 0,
+                'cant_encontrados' => 0,
                 'cant_insertados' => 0
             ]);
     }
