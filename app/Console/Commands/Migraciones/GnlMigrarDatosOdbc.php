@@ -230,7 +230,7 @@ class GnlMigrarDatosOdbc extends Command
 
         $q_comando = $parametro->q_comando;
         $i_comando = $parametro->i_comando;
-      
+
 
         // Obtener campos deseados
         $camposDeseados = $parametro->i_campos_deseados ? explode(',', $parametro->i_campos_deseados) : null;
@@ -244,54 +244,85 @@ class GnlMigrarDatosOdbc extends Command
         print_r("Conexión establecida con 4D.\n");
         Log::info("Conexión establecida con 4D para el parámetro ID: {$parametro->id}");
 
-        // Ejecutar consulta para contar registros 
+        //Ejecutar consulta para contar registros 
         if ($q_comando) {
             try {
-                if (count($camposDeseados)>30) {
-                    // Intenta de nuevo con SELECT * eliminando ORDER BY
-                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
-                }else{
-                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
-                }
-               
-                $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
-                $q_comando_count = preg_replace('/order by .*/', '', $q_comando_count);
-               // $q_comando_count = "SELECT count(*) FROM INVT_Producto_Movimientos WHERE CONFIRM=TRUE AND TRANS_DATE >'2024/01/01' AND TRANS_DATE<'2025/01/01'";
-            
+                // Intentar ejecutar la consulta COUNT
+                //$q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
+                $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
+                $q_comando_count = preg_replace('/ORDER BY .*/i', '', $q_comando_count);
                 print_r($q_comando_count);
-                // Ejecuta la consulta de conteo
-                $resultado = $this->consulta($connection4D, $q_comando_count);
-
-                // Si no hay resultado, intenta nuevamente con SELECT *
-                if (empty($resultado)) {
-                    throw new \Exception("Error: La consulta COUNT no devolvió resultados.");
-                }
-
-            } catch (\Throwable $th) {
-                // Log del error de la consulta COUNT (opcional)
-                error_log('Error en la consulta COUNT: ' . $th->getMessage());
-
+                
+                $resultado = [];
+                
                 try {
-
-                    // Reemplaza la selección original por COUNT(*) y elimina ORDER BY si existe
-                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
-                    $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
-
-                    $resultado = $this->consulta($connection4D, $q_comando_count, $parametro->id);
-
-                    // Si aún no hay resultados, lanza un error
-                    if (empty($resultado)) {
-                        throw new \Exception("Error: La consulta SELECT * no devolvió resultados.");
+                    $result = odbc_exec($connection4D, $q_comando_count);
+        
+                    if (!$result) {
+                        throw new \Exception("Error al ejecutar la consulta COUNT: " . odbc_errormsg($connection4D));
+                    } else {
+                        // Procesar resultados
+                        while ($row = odbc_fetch_array($result)) {
+                            $normalizedRow = [];
+                            foreach ($row as $key => $value) {
+                                $normalizedRow[strtolower($key)] = $value;
+                            }
+                            $resultado[] = $normalizedRow;
+                        }
+        
+                        odbc_free_result($result); // Liberar recursos
+                        $success = true;
                     }
-
-                } catch (\Throwable $th) {
-                    // Actualiza el estado y lanza el error
-                    $this->uptateStatus($parametro->id, 'Error');
-                    throw $th;
+                } catch (\Exception $e) {
+                    // Si ocurre una excepción con la consulta COUNT, se captura aquí
+                    Log::warning("Error ejecutando consulta COUNT: " . $e->getMessage());
+                    
+                    // Intentar la consulta alternativa
+                   // $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
+                    $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT COUNT(*) FROM', $q_comando);
+                    $q_comando_count = preg_replace('/ORDER BY .*/i', '', $q_comando_count);
+                    print_r($q_comando_count);
+        
+                    // Ejecutar la consulta alternativa
+                    try {
+                        $result = odbc_exec($connection4D, $q_comando_count);
+        
+                        if (!$result) {
+                            throw new \Exception("Error al ejecutar la consulta SELECT *: " . odbc_errormsg($connection4D));
+                        } else {
+                            while ($row = odbc_fetch_array($result)) {
+                                $normalizedRow = [];
+                                foreach ($row as $key => $value) {
+                                    $normalizedRow[strtolower($key)] = $value;
+                                }
+                                $resultado[] = $normalizedRow;
+                            }
+        
+                            odbc_free_result($result); // Liberar recursos
+                            $success = true;
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("Error ejecutando consulta SELECT *: " . $e->getMessage());
+                        // Si ambos fallan, continuar con otro flujo o registrar el error
+                        $resultado = [];
+                    }
                 }
+        
+                // Si no hay resultados, lanzar un error
+                if (empty($resultado)) {
+                    throw new \Exception("Error: La consulta no devolvió resultados.");
+                }
+        
+            } catch (\Throwable $th) {
+                // Aquí se maneja cualquier error general y se continúa con el siguiente paso
+                Log::error("Error en el flujo general: " . $th->getMessage());
+                // Puedes continuar con otra ejecución o lógica alternativa
+                // Por ejemplo, pasar a otro proceso o continuar con la siguiente consulta
+                $this->procesarOtroProceso();
             }
         }
-
+        
+        
 
 
         // Mostrar la cantidad de registros encontrados
@@ -304,13 +335,14 @@ class GnlMigrarDatosOdbc extends Command
             $this->uptateStatus($parametro->id, 'Error');
             print_r("No se obtuvieron resultados.\n");
             Log::warning("No se obtuvieron resultados para el parámetro ID: {$parametro->id}");
-        }
 
-        //Actualizar cantidad de registros encontrados
-        if ($cantidad > 0) {
-            GnlParametrosConsultasErpTb::where('id', $parametro->id)
-                ->update(['cant_encontrados' => $cantidad]);
+            //Actualizar cantidad de registros encontrados
+            if ($cantidad > 0) {
+                GnlParametrosConsultasErpTb::where('id', $parametro->id)->update(['cant_encontrados' => $cantidad]);
+            }
         }
+     
+
         // si la cantidad de campos a consultar y insertar es mayor de 30 entonces insertamos y consultamos lotes de 300 si no  entoces de 1000
         $elementCount = count($camposDeseados); // Cuenta los elementos del array
         if ($elementCount > 30 && $elementCount < 200) {
@@ -345,35 +377,19 @@ class GnlMigrarDatosOdbc extends Command
 
 
                         $camposDeseadosFlipped = array_flip($camposDeseados);
-                        if ($parametro->c_crearTabla) {
-                           // print_r("La tabla se está creando");
-                            $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
-                                // Convertir las claves de los campos del registro a minúsculas
-                                $registroLowercaseKeys = array_change_key_case($registro, CASE_LOWER);
 
-                                // Convertir las claves de los campos deseados a minúsculas
-                                $camposDeseadosLowercase = array_change_key_case($camposDeseadosFlipped, CASE_LOWER);
+                        $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
+                            // Convertir claves del registro a minúsculas
+                            $registroLowercaseKeys = array_change_key_case($registro, CASE_LOWER);
 
-                                // Log para ver cómo quedan los datos
-                                //Log::info("registros: ", $registroLowercaseKeys);
+                            // Convertir claves de los campos deseados a minúsculas
+                            $camposDeseadosLowercase = array_change_key_case($camposDeseadosFlipped, CASE_LOWER);
 
-                                // Usar array_intersect_key para obtener solo los campos deseados, sin tener en cuenta mayúsculas/minúsculas
-                                return array_intersect_key($registroLowercaseKeys, $camposDeseadosLowercase);
-                            }, $datos);
+                            // Filtrar los campos deseados
+                            return array_intersect_key($registroLowercaseKeys, $camposDeseadosLowercase);
+                        }, $datos);
 
-                        } else {
-                           // print_r("La tabla ya fue creada");
 
-                            // No transformar los datos, traerlos tal cual
-                            $datos = array_map(function ($registro) use ($camposDeseadosFlipped) {
-                                // Log para ver cómo quedan los datos antes de transformarlos
-                                Log::info("Registro original:", $registro);
-                                Log::info("Campos deseados (originales):", $camposDeseadosFlipped);
-
-                                // Usar array_intersect_key directamente sin transformar las claves
-                                return array_intersect_key($registro, $camposDeseadosFlipped);
-                            }, $datos);
-                        }
 
                     }
 
@@ -469,7 +485,7 @@ class GnlMigrarDatosOdbc extends Command
         GnlParametrosConsultasErpTb::where('id', $parametro->id)
             ->update([
                 'tiempo_ejecucion' => '00:00:00',
-                'cant_encontrados' => 0,
+                //'cant_encontrados' => 0,
                 'cant_insertados' => 0
             ]);
     }
@@ -495,8 +511,8 @@ class GnlMigrarDatosOdbc extends Command
 
                 // Convertimos el nombre de la columna a mayúsculas para evitar problemas de compatibilidad
                 //$nombreColumna = strtoupper($campo['COLUMN_NAME']);
-                $nombreColumna = strtolower($campo['COLUMN_NAME']);
-                $columnNames[] = strtolower($nombreColumna); // Agregamos cada nombre de columna al array en MINUSCULA
+                $nombreColumna = $campo['COLUMN_NAME'];
+                $columnNames[] = $nombreColumna; // Agregamos cada nombre de columna al array en MINUSCULA
 
                 // Agregar la columna al script, con comillas dobles en los nombres de las columnas
                 $scriptCreacion .= "    \"{$nombreColumna}\" $tipoDato $nulo,\n";
@@ -647,9 +663,62 @@ class GnlMigrarDatosOdbc extends Command
     }
 
 
+    /*  public function consulta($connection, $sql, $idProceso = 0)
+     {
+         // Intentar ejecutar la consulta hasta un máximo de 3 veces en caso de fallo
+         $maxRetries = 3;
+         $retries = 0;
+         $success = false;
+         $results = [];
+  
+         while ($retries < $maxRetries && !$success) {
+             try {
+
+                 // Asegúrate de que la conexión está usando UTF-8
+                 $result = odbc_exec($connection, $sql);
+
+                 if (!$result) {
+                     throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
+                 } else {
+                     // Obtener los resultados de la consulta
+                     while ($row = odbc_fetch_array($result)) {
+                         
+                         $results[] = $row;
+                     }
+                     odbc_free_result($result); // Liberar recursos del resultado
+                     $success = true; // Marcar como exitoso
+                 }
+             } catch (\Exception $e) {
+                 // Registrar advertencia y reintentar
+                 // Reemplazar SQL para intentar con todos los campos, en caso de fallo en campos específicos
+                 if ($retries == 0) {
+                     Log::warning("No se pudo buscar por campos la consulta. por ello ahora sera select * from mastuTabla.");
+                     $sql = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $sql);
+                     GnlParametrosConsultasErpTb::where('id', $idProceso)
+                         ->update([
+                             'updated_at' => now(),
+                             'q_comando' => $sql
+                         ]);
+
+                     $this->consulta($connection, $sql, $idProceso);
+                 } else {
+                     Log::warning("Excepción capturada: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
+                     $retries++;
+                     if ($retries >= $maxRetries) {
+                         Log::error("Error después de {$retries} intentos: " . $e->getMessage());
+                         return []; // Retornar vacío si se exceden los intentos
+                     }
+                 }
+
+                 sleep(10); // Esperar un segundo antes del siguiente intento
+             }
+         }
+         print_r($results);
+         return $results; // Retornar los resultados de la consulta
+     } */
+
     public function consulta($connection, $sql, $idProceso = 0)
     {
-        // Intentar ejecutar la consulta hasta un máximo de 3 veces en caso de fallo
         $maxRetries = 3;
         $retries = 0;
         $success = false;
@@ -657,64 +726,74 @@ class GnlMigrarDatosOdbc extends Command
 
         while ($retries < $maxRetries && !$success) {
             try {
-
-                // Asegúrate de que la conexión está usando UTF-8
                 $result = odbc_exec($connection, $sql);
 
                 if (!$result) {
                     throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
                 } else {
-                    // Obtener los resultados de la consulta
+                    // Procesar resultados con nombres de columnas normalizados
                     while ($row = odbc_fetch_array($result)) {
-
-                        $results[] = $row;
+                        $normalizedRow = [];
+                        foreach ($row as $key => $value) {
+                            // Convertir todos los nombres de columnas a minúsculas
+                            $normalizedRow[strtolower($key)] = $value;
+                        }
+                        $results[] = $normalizedRow;
                     }
+
                     odbc_free_result($result); // Liberar recursos del resultado
                     $success = true; // Marcar como exitoso
                 }
             } catch (\Exception $e) {
-                // Registrar advertencia y reintentar
-                // Reemplazar SQL para intentar con todos los campos, en caso de fallo en campos específicos
                 if ($retries == 0) {
-                    Log::warning("No se pudo buscar por campos la consulta. por ello ahora sera select * from mastuTabla.");
+                    Log::warning("No se pudo buscar por campos. Ahora se intentará con SELECT *.");
                     $sql = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $sql);
                     GnlParametrosConsultasErpTb::where('id', $idProceso)
-                        ->update([
-                            'updated_at' => now(),
-                            'q_comando' => $sql
-                        ]);
-
-                    $this->consulta($connection, $sql, $idProceso);
-                } else {
-                    Log::warning("Excepción capturada: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-                    $retries++;
-                    if ($retries >= $maxRetries) {
-                        Log::error("Error después de {$retries} intentos: " . $e->getMessage());
-                        return []; // Retornar vacío si se exceden los intentos
-                    }
+                        ->update(['updated_at' => now(), 'q_comando' => $sql]);
                 }
-
-                sleep(10); // Esperar un segundo antes del siguiente intento
+                Log::warning("Excepción capturada: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
+                $retries++;
+                if ($retries >= $maxRetries) {
+                    Log::error("Error después de {$retries} intentos: " . $e->getMessage());
+                    return [];
+                }
+                sleep(10);
             }
         }
 
-        return $results; // Retornar los resultados de la consulta
+        return $results;
     }
 
-    private function cerrarConexion($dbService)
-    {
-        // Obtener el recurso de conexión desde el servicio
-        $connection = $dbService->getConnection();
-        if ($connection) {
-            odbc_close($connection); // Cerrar la conexión ODBC
-            Log::info('Conexión ODBC cerrada.');
-        }
-    }
+
+    /*  public function getCamposTable($connection4D, $tabla)
+     {
+         // Obtener los nombres y tipos de campo mediante ODBC
+         $query = "SELECT * FROM $tabla LIMIT 0"; // Solo obtener metadatos, sin datos
+         $result = odbc_exec($connection4D, $query);
+
+         if (!$result) {
+             Log::error("Error al ejecutar la consulta en la tabla: " . odbc_errormsg($connection4D));
+             return null;
+         }
+
+         // Array para almacenar los campos y su información
+         $campos = [];
+         for ($i = 1; $i <= odbc_num_fields($result); $i++) {
+             $campoNombre = odbc_field_name($result, $i);
+             $campoTipo = odbc_field_type($result, $i);
+
+             $campos[$i] = [
+                 'COLUMN_NAME' => $campoNombre,
+                 'DATA_TYPE' => $campoTipo
+             ];
+         }
+
+         return $campos;
+     } */
 
     public function getCamposTable($connection4D, $tabla)
     {
-        // Obtener los nombres y tipos de campo mediante ODBC
-        $query = "SELECT * FROM $tabla LIMIT 0"; // Solo obtener metadatos, sin datos
+        $query = "SELECT * FROM $tabla LIMIT 0";
         $result = odbc_exec($connection4D, $query);
 
         if (!$result) {
@@ -722,10 +801,9 @@ class GnlMigrarDatosOdbc extends Command
             return null;
         }
 
-        // Array para almacenar los campos y su información
         $campos = [];
         for ($i = 1; $i <= odbc_num_fields($result); $i++) {
-            $campoNombre = odbc_field_name($result, $i);
+            $campoNombre = strtolower(odbc_field_name($result, $i)); // Convertir a minúsculas
             $campoTipo = odbc_field_type($result, $i);
 
             $campos[$i] = [
@@ -737,6 +815,14 @@ class GnlMigrarDatosOdbc extends Command
         return $campos;
     }
 
-
+    private function cerrarConexion($dbService)
+    {
+        // Obtener el recurso de conexión desde el servicio
+        $connection = $dbService->getConnection();
+        if ($connection) {
+            odbc_close($connection); // Cerrar la conexión ODBC
+            Log::info('Conexión ODBC cerrada.');
+        }
+    }
 
 }
