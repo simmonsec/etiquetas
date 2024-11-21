@@ -482,7 +482,6 @@ class GnlMigrarDatosOdbc extends Command
         if (!empty($campos)) {
             $scriptCreacion = "CREATE TABLE \"$schema\".\"$tabla\" (\n"; // Escapamos el nombre de la tabla
             $columnNames = []; // Inicializamos un array para almacenar los nombres de las columnas
-            $columnNamesSelect = []; // Inicializamos un array para almacenar los nombres de las columnas
 
             foreach ($campos as $campo) {
                 // Asignar tipo de dato según el tipo obtenido de la consulta
@@ -491,9 +490,8 @@ class GnlMigrarDatosOdbc extends Command
 
                 // Convertimos el nombre de la columna a mayúsculas para evitar problemas de compatibilidad
                 //$nombreColumna = strtoupper($campo['COLUMN_NAME']);
-                $nombreColumna = strtolower($campo['COLUMN_NAME']);
-                $columnNamesSelect[] = $campo['COLUMN_NAME'];
-                $columnNames[] = strtolower($nombreColumna); // Agregamos cada nombre de columna al array en MINUSCULA
+                $nombreColumna = $campo['COLUMN_NAME'];
+                $columnNames[] = $nombreColumna; // Agregamos cada nombre de columna al array en MINUSCULA
 
                 // Agregar la columna al script, con comillas dobles en los nombres de las columnas
                 $scriptCreacion .= "    \"{$nombreColumna}\" $tipoDato $nulo,\n";
@@ -502,9 +500,8 @@ class GnlMigrarDatosOdbc extends Command
 
             // Unir los nombres de las columnas en una cadena separada por comas
             $columnNamesString = implode(',', $columnNames);
-            $columnNamesStringSelect = implode(',', $columnNamesSelect);
             // Encerrar los campos con espacios en corchetes si es necesario
-            $camposSelect = $this->encerrarCamposConEspaciosEnCorchetes($columnNamesStringSelect);
+            $camposSelect = $this->encerrarCamposConEspaciosEnCorchetes($columnNamesString);
             //Log::info($camposSelect);
             // Actualizar los campos en la tabla del evento
             $comando = "SELECT {$camposSelect} FROM $tabla"; // Aseguramos que el nombre de la tabla esté entre comillas dobles para evitar problemas
