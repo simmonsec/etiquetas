@@ -21,7 +21,10 @@ class GnlParametrosConsultasErpTb extends Model
         'i_user',
         'i_password',
         'i_comando',
-        'secuenciaEjecucion',
-        'resultadoEjecucion',
+        'e_secuencia',
+        'e_resultado',
+        'cant_encontrados',
+        'cant_insertados',
+        'tiempo_ejecucion'
     ];
 }
