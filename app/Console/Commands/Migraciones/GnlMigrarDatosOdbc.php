@@ -251,8 +251,9 @@ class GnlMigrarDatosOdbc extends Command
                 $q_comando_count = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $q_comando);
                 $q_comando_count = preg_replace('/ORDER BY .*/', '', $q_comando_count);
                 $q_comando_count = preg_replace('/order by .*/', '', $q_comando_count);
-                $q_comando_count = "SELECT count(*) FROM INVT_Producto_Movimientos WHERE CONFIRM=TRUE AND TRANS_DATE >'2024/01/01' AND TRANS_DATE<'2025/01/01";
+                $q_comando_count = "SELECT count(*) FROM INVT_Producto_Movimientos WHERE CONFIRM=TRUE AND TRANS_DATE >'2024/01/01' AND TRANS_DATE<'2025/01/01'";
             
+                print_r($q_comando_count);
                 // Ejecuta la consulta de conteo
                 $resultado = $this->consulta($connection4D, $q_comando_count);
 
