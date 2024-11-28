@@ -153,9 +153,6 @@ class GnlMigrarDatosOdbc extends Command
 
         return $subTareas;
     }
-
-
-
     /**
      * Ejecuta las operaciones de un proceso.
      */
@@ -191,10 +188,6 @@ class GnlMigrarDatosOdbc extends Command
             Log::info("[Operaciones] Fecha pendiente para ID {$parametro->id}: {$parametro->e_proxima}");
         }
     }
-
-
-
-
     /**
      * Implementa un retraso configurable.
      */
@@ -209,8 +202,6 @@ class GnlMigrarDatosOdbc extends Command
         }
         print_r("¡Tiempo de espera finalizado!\n");
     }
-
-
     /**
      * Actualiza el estado del proceso.
      */
@@ -222,7 +213,6 @@ class GnlMigrarDatosOdbc extends Command
                 'e_resultado' => $estado
             ]);
     }
-
     public function procesar($parametro, $connection4D)
     {
         $this->resetValores($parametro);
@@ -273,6 +263,7 @@ class GnlMigrarDatosOdbc extends Command
                         odbc_free_result($result); // Liberar recursos
                         $success = true;
                     }
+                    
                 } catch (\Exception $e) {
                     // Si ocurre una excepción con la consulta COUNT, se captura aquí
                     Log::warning("Error ejecutando consulta COUNT: " . $e->getMessage());
@@ -357,8 +348,8 @@ class GnlMigrarDatosOdbc extends Command
         print_r("Buscando: {$porcentajePaginado} registros por lote.\n\n");
 
         // Procesar datos en lotes
-        $batchSize = $porcentajePaginado;
-        $offset = 0;
+        $lote_tamano = $porcentajePaginado;
+        $inicio = 0;
         $cantidadTotalInsert = 0;
 
         try {
@@ -367,7 +358,7 @@ class GnlMigrarDatosOdbc extends Command
                 $startTime = microtime(true);
 
                 // Consultar datos paginados
-                $q_comandoPaginado = $q_comando . " LIMIT {$batchSize} OFFSET {$offset}";
+                $q_comandoPaginado = $q_comando . " LIMIT {$lote_tamano} OFFSET {$inicio}";
                 //Log::info($q_comandoPaginado);
 
                 $datos = $this->consulta($connection4D, $q_comandoPaginado);
@@ -437,20 +428,20 @@ class GnlMigrarDatosOdbc extends Command
                         }
 
                         // Actualizar offset y calcular registros restantes
-                        $offset += $batchSize;
-                        $restante = $cantidad - $offset;
+                        $inicio += $lote_tamano;
+                        $restante = $cantidad - $inicio;
 
                         // Ajustar el tamaño del lote si es necesario
-                        if ($batchSize > $restante) {
-                            $batchSize = $restante;
+                        if ($lote_tamano > $restante) {
+                            $lote_tamano = $restante;
                         }
 
                         // Log del progreso
                         $endTime = microtime(true);
                         $elapsedTime = $endTime - $startTime;
                         $tiempo = number_format($elapsedTime, 4);
-                        Log::info("Insertados: {$offset} de {$cantidad}, Restan: {$restante}, Duración: {$tiempo} segundos.");
-                        print_r("Insertados: {$offset} de {$cantidad}, Restan: {$restante}, Duración: {$tiempo} segundos.\n");
+                        Log::info("Insertados: {$inicio} de {$cantidad}, Restan: {$restante}, Duración: {$tiempo} segundos.");
+                        print_r("Insertados: {$inicio} de {$cantidad}, Restan: {$restante}, Duración: {$tiempo} segundos.\n");
                     } else {
                         Log::warning("No existe el comando en el campo i_comando de la tabla de parametros. ");
                     }
@@ -503,7 +494,6 @@ class GnlMigrarDatosOdbc extends Command
                 'cant_insertados' => 0
             ]);
     }
-
     public function generarTabla($connection, $parametro)
     {
         $schema = $parametro->c_schema;
@@ -574,27 +564,30 @@ class GnlMigrarDatosOdbc extends Command
         }
 
     }
-
-    function encerrarCamposConEspaciosEnCorchetes($texto)
+    public function getCamposTable($connection4D, $tabla)
     {
-        // Dividir el texto por comas para analizar cada campo individualmente
-        $campos = explode(',', $texto);
+        $query = "SELECT * FROM $tabla LIMIT 0";
+        $result = odbc_exec($connection4D, $query);
 
-        // Procesar cada campo individualmente
-        foreach ($campos as &$campo) {
-            // Quitar espacios adicionales al inicio y al final
-            $campo = trim($campo);
-
-            // Verificar si el campo tiene espacios y no está entre corchetes
-            if (strpos($campo, ' ') !== false && !preg_match('/^\[.*\]$/', $campo)) {
-                // Encerrar el campo entre corchetes
-                $campo = "[$campo]";
-            }
+        if (!$result) {
+            Log::error("Error al ejecutar la consulta en la tabla: " . odbc_errormsg($connection4D));
+            return null;
         }
 
-        // Unir los campos de nuevo con comas y devolver el resultado
-        return implode(',', $campos);
+        $campos = [];
+        for ($i = 1; $i <= odbc_num_fields($result); $i++) {
+            $campoNombre = strtolower(odbc_field_name($result, $i)); // Convertir a minúsculas
+            $campoTipo = odbc_field_type($result, $i);
+
+            $campos[$i] = [
+                'COLUMN_NAME' => $campoNombre,
+                'DATA_TYPE' => $campoTipo
+            ];
+        }
+
+        return $campos;
     }
+    
     private function mapearTipoDato($tipo4d)
     {
         switch (strtolower($tipo4d)) {
@@ -648,89 +641,29 @@ class GnlMigrarDatosOdbc extends Command
             default: // Tipo desconocido o texto por defecto
                 return 'TEXT';
         }
-        /* switch ($tipo4d) {
-            case '0': // Texto
-            case '1': // Texto
-            case '2': // Texto
-            case '10': // Texto
-                return 'TEXT';
-            case '3': // Entero
-                return 'NUMERIC';
-            case '4': // Longint
-                return 'NUMERIC';
-            case '5': // Hora o intervalo
-                return 'TIME'; // O 'INTERVAL' si es necesario
-            case '6': // Número decimal (flotante)
-                return 'FLOAT'; // O 'NUMERIC' si necesitas más precisión
-            case '7': // Entero (redundante con el caso 3)
-                return 'NUMERIC';
-            case '8': // Fecha
-            case '9': // Fecha (redundante con el caso 8)
-                return 'DATE';
-            case '13': // UUID
-                return 'UUID';
-            case '21': // Objeto
-                return 'TEXT';
-            default:
-                return 'TEXT'; // Tipo por defecto en caso de que no se encuentre un tipo conocido
-        } */
+       
     }
+    function encerrarCamposConEspaciosEnCorchetes($texto)
+    {
+        // Dividir el texto por comas para analizar cada campo individualmente
+        $campos = explode(',', $texto);
 
+        // Procesar cada campo individualmente
+        foreach ($campos as &$campo) {
+            // Quitar espacios adicionales al inicio y al final
+            $campo = trim($campo);
 
-    /*  public function consulta($connection, $sql, $idProceso = 0)
-     {
-         // Intentar ejecutar la consulta hasta un máximo de 3 veces en caso de fallo
-         $maxRetries = 3;
-         $retries = 0;
-         $success = false;
-         $results = [];
-  
-         while ($retries < $maxRetries && !$success) {
-             try {
+            // Verificar si el campo tiene espacios y no está entre corchetes
+            if (strpos($campo, ' ') !== false && !preg_match('/^\[.*\]$/', $campo)) {
+                // Encerrar el campo entre corchetes
+                $campo = "[$campo]";
+            }
+        }
 
-                 // Asegúrate de que la conexión está usando UTF-8
-                 $result = odbc_exec($connection, $sql);
-
-                 if (!$result) {
-                     throw new \Exception("Error al ejecutar la consulta: " . odbc_errormsg($connection));
-                 } else {
-                     // Obtener los resultados de la consulta
-                     while ($row = odbc_fetch_array($result)) {
-                         
-                         $results[] = $row;
-                     }
-                     odbc_free_result($result); // Liberar recursos del resultado
-                     $success = true; // Marcar como exitoso
-                 }
-             } catch (\Exception $e) {
-                 // Registrar advertencia y reintentar
-                 // Reemplazar SQL para intentar con todos los campos, en caso de fallo en campos específicos
-                 if ($retries == 0) {
-                     Log::warning("No se pudo buscar por campos la consulta. por ello ahora sera select * from mastuTabla.");
-                     $sql = preg_replace('/SELECT\s+(.*?)\s+FROM/i', 'SELECT * FROM', $sql);
-                     GnlParametrosConsultasErpTb::where('id', $idProceso)
-                         ->update([
-                             'updated_at' => now(),
-                             'q_comando' => $sql
-                         ]);
-
-                     $this->consulta($connection, $sql, $idProceso);
-                 } else {
-                     Log::warning("Excepción capturada: " . $e->getMessage() . " - Reintento {$retries} de {$maxRetries}");
-                     $retries++;
-                     if ($retries >= $maxRetries) {
-                         Log::error("Error después de {$retries} intentos: " . $e->getMessage());
-                         return []; // Retornar vacío si se exceden los intentos
-                     }
-                 }
-
-                 sleep(10); // Esperar un segundo antes del siguiente intento
-             }
-         }
-         print_r($results);
-         return $results; // Retornar los resultados de la consulta
-     } */
-
+        // Unir los campos de nuevo con comas y devolver el resultado
+        return implode(',', $campos);
+    }
+    
     public function consulta($connection, $sql, $idProceso = 0)
     {
         $maxRetries = 3;
@@ -778,56 +711,6 @@ class GnlMigrarDatosOdbc extends Command
         return $results;
     }
 
-
-    /*  public function getCamposTable($connection4D, $tabla)
-     {
-         // Obtener los nombres y tipos de campo mediante ODBC
-         $query = "SELECT * FROM $tabla LIMIT 0"; // Solo obtener metadatos, sin datos
-         $result = odbc_exec($connection4D, $query);
-
-         if (!$result) {
-             Log::error("Error al ejecutar la consulta en la tabla: " . odbc_errormsg($connection4D));
-             return null;
-         }
-
-         // Array para almacenar los campos y su información
-         $campos = [];
-         for ($i = 1; $i <= odbc_num_fields($result); $i++) {
-             $campoNombre = odbc_field_name($result, $i);
-             $campoTipo = odbc_field_type($result, $i);
-
-             $campos[$i] = [
-                 'COLUMN_NAME' => $campoNombre,
-                 'DATA_TYPE' => $campoTipo
-             ];
-         }
-
-         return $campos;
-     } */
-
-    public function getCamposTable($connection4D, $tabla)
-    {
-        $query = "SELECT * FROM $tabla LIMIT 0";
-        $result = odbc_exec($connection4D, $query);
-
-        if (!$result) {
-            Log::error("Error al ejecutar la consulta en la tabla: " . odbc_errormsg($connection4D));
-            return null;
-        }
-
-        $campos = [];
-        for ($i = 1; $i <= odbc_num_fields($result); $i++) {
-            $campoNombre = strtolower(odbc_field_name($result, $i)); // Convertir a minúsculas
-            $campoTipo = odbc_field_type($result, $i);
-
-            $campos[$i] = [
-                'COLUMN_NAME' => $campoNombre,
-                'DATA_TYPE' => $campoTipo
-            ];
-        }
-
-        return $campos;
-    }
 
     private function cerrarConexion($dbService)
     {

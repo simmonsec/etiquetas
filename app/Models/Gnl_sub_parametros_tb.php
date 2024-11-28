@@ -14,4 +14,9 @@ class Gnl_sub_parametros_tb extends Model
     protected $fillable = [
         'subpID', 'subp_paramID', 'subp_estado', 'subp_secuencia'
     ];
+    // Relación inversa con las tareas
+    public function tarea()
+    {
+        return $this->belongsTo(GnlParametrosConsultasErpTb::class, 'subp_paramID', 'e_secuencia');
+    }
 }

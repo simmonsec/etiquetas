@@ -27,4 +27,9 @@ class GnlParametrosConsultasErpTb extends Model
         'cant_insertados',
         'tiempo_ejecucion'
     ];
+    // Relación con las subtareas
+    public function subtareas()
+    {
+        return $this->hasMany(Gnl_sub_parametros_tb::class, 'subp_paramID', 'e_secuencia');
+    }
 }

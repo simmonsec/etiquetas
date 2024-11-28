@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia; 
 use App\Http\Controllers\ScanSessionController; 
 use App\Http\Controllers\EtiquetaController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\GoogleSheetsController;
+use App\Http\Controllers\ParametrosMigraciones;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -24,7 +27,18 @@ Route::get('/', function () {
     return Inertia::render('ScanProduct');
 });
 
+Route::get('/migraciones', function () {
+    return Inertia::render('Migraciones');
+});
+Route::get('/api/migraciones/tareas', [ParametrosMigraciones::class, 'Tareas']);
+Route::get('/api/migraciones/subTareas/{tareaId}', [ParametrosMigraciones::class, 'SubTareas']);
  
+
+
+Route::get('/dashboard', function () {
+    return Inertia::render('Dashboard');
+});
+
 Route::get('/getSesion', [ScanSessionController::class, 'getSession']);
 Route::get('/getEtiquetaFormato/{code}', [EtiquetaController::class, 'getEtiquetaFormato']);
 Route::get('/crearNuevo/{ean13}/{ean14}/{ean128}', [EtiquetaController::class, 'crearNuevo']);
@@ -44,10 +58,12 @@ Route::get('/wl', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
+Route::get('/eventos', function () {
     return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
+})->name('dashboard');
+Route::get('/api/eventos/reporte1', [EventController::class, 'reporte1']);
+Route::get('/api/eventos/reporte2', [EventController::class, 'reporte2']);
+Route::get('/api/eventos/reporte3', [EventController::class, 'reporte3']);
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -56,11 +72,11 @@ Route::middleware('auth')->group(function () {
 
 
 //SHEETS 
-use App\Http\Controllers\GoogleSheetsController;
 
 
 Route::get('/auth/google', [GoogleSheetsController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/callback', [GoogleSheetsController::class, 'handleGoogleCallback'])->name('callback');
 Route::get('/sheets', [GoogleSheetsController::class, 'accessGoogleSheets'])->name('sheets');
+
 
 require __DIR__.'/auth.php';
