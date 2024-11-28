@@ -4,14 +4,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import React, { useEffect, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { Button } from "@/shadcn/ui/button"
-import { Input } from "@/shadcn/ui/input"
-import { Label } from "@/shadcn/ui/label"
+import Countdown from '../Components/CuentaRegresiva'; // Importamos el componente Countdown
+
 import {
     Sheet,
-    SheetClose,
     SheetContent,
     SheetDescription,
-    SheetFooter,
     SheetHeader,
     SheetTitle,
     SheetTrigger,
@@ -28,20 +26,14 @@ import {
 
 import {
     Breadcrumb,
-    BreadcrumbEllipsis,
+  
     BreadcrumbItem,
     BreadcrumbLink,
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/shadcn/ui/breadcrumb"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/shadcn/ui/dropdown-menu"
-
+ 
 interface Evento {
     descripcion: string;
     e_estado: 'A' | 'I'; // 'A' para Activo, 'I' para Inactivo
@@ -61,10 +53,7 @@ interface Evento {
 const Migraciones = () => {
     const [tareas, setTareas] = useState<Evento[]>([]);
     const [currentTime, setCurrentTime] = useState(new Date());
-
-    const SHEET_SIDES = ["top", "right", "bottom", "left"] as const
-    type SheetSide = (typeof SHEET_SIDES)[number]
-
+ 
     const [subTareas, setSubTareas] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -299,7 +288,7 @@ const Migraciones = () => {
                                                         </SheetContent>
                                                     </Sheet>
                                                 ) : (
-                                                    <p className="text-gray-500">No hay subprocesos disponibles.</p>
+                                                    <p className="text-gray-500"></p>
                                                 )}
 
                                             </div>
@@ -313,6 +302,7 @@ const Migraciones = () => {
                                         <TableCell className="hidden md:table-cell text-center py-3 px-4">{evento.e_frecuencia} {evento.e_frecuencia > 1 ? ' minutos' : 'minuto'}</TableCell>
                                         <TableCell className="hidden md:table-cell text-center py-3 px-4">
                                             {evento.e_proxima ? formatDateTime(evento.e_proxima) : "No programada"}
+                                            <p><small><Badge variant="outline"><Countdown targetDate={evento.e_proxima} /></Badge></small></p>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell text-center py-3 px-4">
                                             {evento.e_resultado === 'Finalizado' ? (
