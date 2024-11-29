@@ -30,8 +30,9 @@ Route::get('/', function () {
 Route::get('/migraciones', function () {
     return Inertia::render('Migraciones');
 });
-Route::get('/api/migraciones/tareas', [ParametrosMigraciones::class, 'Tareas']);
-Route::get('/api/migraciones/subTareas/{tareaId}', [ParametrosMigraciones::class, 'SubTareas']);
+Route::get('/api/migraciones/proceso', [ParametrosMigraciones::class, 'Procesos']);
+Route::get('/api/migraciones/subProceso', [ParametrosMigraciones::class, 'SubProcesos']);
+Route::get('/api/migraciones/SubProcesoDetalle/{procesoID}', [ParametrosMigraciones::class, 'SubProcesoDetalle']);
  
 
 
