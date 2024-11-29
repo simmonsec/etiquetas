@@ -15,7 +15,10 @@ import {
     SheetTrigger,
 } from "@/shadcn/ui/sheet"
 import {
+    Filter,
+    FilterX,
     Home,
+    XCircle,
 } from "lucide-react"
 import {
     Tooltip,
@@ -26,14 +29,14 @@ import {
 
 import {
     Breadcrumb,
-  
+
     BreadcrumbItem,
     BreadcrumbLink,
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/shadcn/ui/breadcrumb"
- 
+
 interface Evento {
     descripcion: string;
     e_estado: 'A' | 'I'; // 'A' para Activo, 'I' para Inactivo
@@ -53,7 +56,7 @@ interface Evento {
 const Migraciones = () => {
     const [tareas, setTareas] = useState<Evento[]>([]);
     const [currentTime, setCurrentTime] = useState(new Date());
- 
+
     const [subTareas, setSubTareas] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -109,7 +112,15 @@ const Migraciones = () => {
         return () => clearInterval(interval);
     }, []);
 
+    const [filtro, setFiltro] = React.useState('todos'); // 'todos', 'proceso', 'subproceso'
 
+    // Función para filtrar los eventos
+    const eventosFiltrados = tareas.filter((evento) => {
+        if (filtro === 'todos') return true; // No aplica filtro
+        if (filtro === 'proceso') return evento.e_secuencia > 0; // Considerar procesos
+        if (filtro === 'subproceso') return evento.e_secuencia == 0; // Considerar subprocesos
+        return false;
+    });
     return (
         <>
             <Head title="MIGRACIONES MBA" />
@@ -119,7 +130,7 @@ const Migraciones = () => {
                     <div className="flex justify-between items-center">
                         {/* Título alineado a la izquierda */}
                         <CardTitle className="text-2xl font-bold text-white">
-                            Gestión de Eventos y Subprocesos
+                            Gestión de Procesos y Subprocesos de migraciones
                         </CardTitle>
 
                         {/* Reloj alineado a la derecha */}
@@ -132,19 +143,6 @@ const Migraciones = () => {
                     <CardDescription className="text-sm text-white/80 mt-2">
                         Actualización de parámetros en tiempo real para el monitoreo y control de eventos.
                     </CardDescription>
-
-                    {/* Indicadores de tipo de evento */}
-                    <div className="flex items-center space-x-4 mt-4 text-sm">
-                        <div className="flex items-center">
-                            <div className="w-3 h-3 rounded-full bg-blue-300 mr-2" />
-                            <p className="text-white">Evento Principal</p>
-                        </div>
-                        <div className="flex items-center">
-                            <div className="w-3 h-3 rounded-full bg-orange-500 mr-2" />
-                            <p className="text-white">Subproceso Asociado</p>
-                        </div>
-                    </div>
-
                     {/* Breadcrumbs */}
                     <Breadcrumb className="mt-4">
                         <BreadcrumbList>
@@ -158,12 +156,31 @@ const Migraciones = () => {
                                     </Link>
                                 </BreadcrumbLink>
                             </BreadcrumbItem>
-                            <BreadcrumbSeparator className="text-white"/>
+                            <BreadcrumbSeparator className="text-white" />
                             <BreadcrumbItem>
                                 <BreadcrumbLink href="#" className="text-white">Migraciones</BreadcrumbLink>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
+                    {/* Indicadores de tipo de evento */}
+                    <div className="flex items-center space-x-4 mt-4 text-sm">
+                        <div onClick={() => setFiltro('proceso')}
+                            className={`px-2 py-2 flex items-center rounded-md ${filtro === 'proceso' ? 'bg-blue-900 text-white' : 'bg-blue-500'}`}>
+                            <div className="w-3 h-3 rounded-full bg-blue-300 mr-2" />
+                            <p className="text-white">Procesos Principales</p>
+                        </div>
+                        <div onClick={() => setFiltro('subproceso')}
+                            className={`px-2 py-2 flex items-center rounded-md ${filtro === 'subproceso' ? 'bg-blue-900 text-white' : 'bg-blue-500'}`}>
+                            <div className="w-3 h-3 rounded-full bg-orange-500 mr-2" />
+                            <p className="text-white">Subprocesos Asociados</p>
+                        </div>
+                        <div onClick={() => setFiltro('todos')}
+                            className={`px-2 py-2 flex items-center rounded-md ${filtro === 'todos' ? 'bg-blue-900 text-white' : 'bg-blue-500'}`}>
+                            <p className="text-white">{filtro==='todos' ? (<Filter  className="h-5 w-5" fill="white" />) : (<FilterX   className="h-5 w-5" fill="white" />)} </p>
+                        </div>
+                    </div>
+
+
                 </CardHeader>
 
 
@@ -183,7 +200,7 @@ const Migraciones = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {tareas.map((evento, index) => {
+                            {eventosFiltrados.map((evento, index) => {
                                 const filaResaltada = evento.e_resultado === 'Ejecutándose...' ? 'bg-yellow-200' : '';
 
                                 return (
