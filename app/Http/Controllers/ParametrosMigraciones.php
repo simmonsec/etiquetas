@@ -53,8 +53,9 @@ class ParametrosMigraciones extends Controller
    
          )->where('e_secuencia','>',0)
          ->where('e_estado','A')
-         ->orderBy('parametros.e_secuencia')
          ->orderBy('parametros.e_proxima')
+         ->orderBy('parametros.e_secuencia')
+         
          ->get();
      
 

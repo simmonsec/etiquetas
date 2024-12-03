@@ -36,6 +36,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/shadcn/ui/breadcrumb"
+import { ClipLoader } from 'react-spinners';
 
 interface Evento {
     descripcion: string;
@@ -54,12 +55,14 @@ interface Evento {
 
 
 const Migraciones = () => {
-    const [tareas, setTareas] = useState<Evento[]>([]);
+    const [proceso, setProceso] = useState<Evento[]>([]);
+    const [subProceso, setSubProceso] = useState([]);
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const [subTareas, setSubTareas] = useState([]);
+    const [subProcesosDetalle, setSubProcesoDetalle] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [filtro, setFiltro] = useState('proceso'); // 'todos', 'proceso', 'subproceso'
 
     // Formatear fecha y hora
     const formatDateTime = (dateString) => {
@@ -71,59 +74,74 @@ const Migraciones = () => {
         }).format(date);
     };
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            getTareas();
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, []);
-
-    async function getTareas() {
+    // Obtener procesos principales
+    async function getProcesos() {
         try {
-            const response = await fetch('/api/migraciones/tareas');
+            const response = await fetch('/api/migraciones/proceso');
             const data = await response.json();
-            setTareas(data);
-            //console.log(data)
+            setProceso(data);
         } catch (error) {
-            console.error('Error al obtener el Indicador 2:', error);
+            console.error('Error al obtener los procesos principales:', error);
         }
     }
 
-    const getSubTareas = async (id) => {
+    // Obtener subprocesos asociados
+    async function getSubProcesos() {
+        try {
+            const response = await fetch('/api/migraciones/subProceso');
+            const data = await response.json();
+            setSubProceso(data);
+        } catch (error) {
+            console.error('Error al obtener los subprocesos:', error);
+        }
+    }
+
+    // Obtener detalles de un subproceso específico
+    const getSubProcesosDetalle = async (id) => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/migraciones/subTareas/${id}`);
+            const response = await fetch(`/api/migraciones/SubProcesoDetalle/${id}`);
             const data = await response.json();
-            setSubTareas(data);
+            setSubProcesoDetalle(data);
         } catch (error) {
             setError(error.message);
         } finally {
             setLoading(false);
         }
     };
-    // Actualizar reloj cada segundo
+
+    // Filtrar eventos según el tipo seleccionado
+    const eventosFiltrados = filtro === 'subproceso' ? subProceso : filtro === 'proceso' ? proceso : [...proceso, ...subProceso];
+
+    // Cambiar el filtro y obtener datos en función del filtro
+    const handleFiltroChange = async (nuevoFiltro) => {
+        setFiltro(nuevoFiltro);
+        if (nuevoFiltro === 'subproceso') {
+            await getSubProcesos();
+        } else if (nuevoFiltro === 'proceso') {
+            await getProcesos();
+        } else {
+            // En el caso de "todos", obtenemos ambos
+            await Promise.all([getProcesos(), getSubProcesos()]);
+        }
+    };
+
+    // Actualizar el reloj cada segundo
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentTime(new Date());
-            getTareas();
+            getProcesos()
+            getSubProcesos()
         }, 1000);
 
         return () => clearInterval(interval);
     }, []);
 
-    const [filtro, setFiltro] = React.useState('todos'); // 'todos', 'proceso', 'subproceso'
 
-    // Función para filtrar los eventos
-    const eventosFiltrados = tareas.filter((evento) => {
-        if (filtro === 'todos') return true; // No aplica filtro
-        if (filtro === 'proceso') return evento.e_secuencia > 0; // Considerar procesos
-        if (filtro === 'subproceso') return evento.e_secuencia == 0; // Considerar subprocesos
-        return false;
-    });
     return (
         <>
             <Head title="MIGRACIONES MBA" />
+
             <Card className="shadow-lg rounded-lg border border-gray-200">
                 <CardHeader className="bg-gradient-to-r from-blue-500 to-teal-500 px-7 py-4 rounded-t-lg shadow-md">
                     {/* Fila con título a la izquierda y reloj a la derecha */}
@@ -164,31 +182,29 @@ const Migraciones = () => {
                     </Breadcrumb>
                     {/* Indicadores de tipo de evento */}
                     <div className="flex items-center space-x-4 mt-4 text-sm">
-                        <div onClick={() => setFiltro('proceso')}
+                        <div onClick={() => handleFiltroChange('proceso')}
                             className={`px-2 py-2 flex items-center rounded-md ${filtro === 'proceso' ? 'bg-blue-900 text-white' : 'bg-blue-500'}`}>
                             <div className="w-3 h-3 rounded-full bg-blue-300 mr-2" />
-                            <p className="text-white">Procesos Principales</p>
+                            <p className="text-white">Procesos Principales {proceso.length}</p>
                         </div>
-                        <div onClick={() => setFiltro('subproceso')}
+                        <div onClick={() => handleFiltroChange('subproceso')}
                             className={`px-2 py-2 flex items-center rounded-md ${filtro === 'subproceso' ? 'bg-blue-900 text-white' : 'bg-blue-500'}`}>
                             <div className="w-3 h-3 rounded-full bg-orange-500 mr-2" />
-                            <p className="text-white">Subprocesos Asociados</p>
+                            <p className="text-white">Subprocesos Asociados {subProceso.length}</p>
                         </div>
                         <div onClick={() => setFiltro('todos')}
                             className={`px-2 py-2 flex items-center rounded-md ${filtro === 'todos' ? 'bg-blue-900 text-white' : 'bg-blue-500'}`}>
-                            <p className="text-white">{filtro==='todos' ? (<Filter  className="h-5 w-5" fill="white" />) : (<FilterX   className="h-5 w-5" fill="white" />)} </p>
+                            <p className="text-white">{filtro === 'todos' ? (<Filter className="h-5 w-5" fill="white" />) : (<FilterX className="h-5 w-5" fill="white" />)} </p>
                         </div>
                     </div>
 
 
                 </CardHeader>
-
-
-
                 <CardContent className="p-4">
                     <Table className="w-full border-collapse border border-gray-300 text-sm rounded-lg overflow-hidden">
                         <TableHeader className="bg-gray-100 text-gray-900">
                             <TableRow>
+                                <TableHead></TableHead>
                                 <TableHead className="py-3 px-4 text-left font-semibold text-gray-800">Descripción</TableHead>
                                 <TableHead className="hidden sm:table-cell py-3 px-4 text-center text-gray-800">Secuencia</TableHead>
                                 <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Última Ejecución</TableHead>
@@ -208,14 +224,16 @@ const Migraciones = () => {
                                         key={index}
                                         className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"
                                             } ${filaResaltada} hover:bg-blue-100 transition-colors duration-200 border-t border-b border-gray-200`}
-                                    >
+                                    ><TableCell><small>{index + 1}</small></TableCell>
                                         <TableCell className="py-3 px-4">
                                             <div className="flex items-center">
                                                 <div
-                                                    className={`w-3 h-3 rounded-full mr-2 ${evento.e_secuencia == 0 ? 'bg-orange-500' : 'bg-blue-500'}`}
+                                                    className={`w-3 h-3 rounded-full mr-2 ${evento.tipo === 2 ? 'bg-orange-500' : 'bg-blue-500'}`}
                                                 />
                                                 <p className="font-medium text-gray-800">
-                                                    {evento.descripcion}
+
+                                                    <b>{evento.tipo === 2 ? `${evento.descripcionprocesoprincipal} | ` : ''} </b>   {evento.descripcion}
+
                                                 </p>
                                             </div>
 
@@ -237,7 +255,7 @@ const Migraciones = () => {
                                                         <SheetTrigger asChild>
                                                             <Badge
                                                                 variant="outline"
-                                                                onClick={() => getSubTareas(evento.id)}
+                                                                onClick={() => getSubProcesosDetalle(evento.id)}
                                                                 className="bg-teal-600 text-white hover:bg-teal-100 border border-green-200 px-2 py-1 rounded-md mt-2"
                                                             >
                                                                 {evento.subprocesos_count} {evento.subprocesos_count > 1 ? 'Subprocesos' : 'Subproceso'}
@@ -257,46 +275,58 @@ const Migraciones = () => {
                                                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Subprocesos</h3>
 
                                                                 {/* Aquí mostramos los subparámetros en una tabla */}
-                                                                {subTareas.length > 0 ? (
+                                                                {subProcesosDetalle.length > 0 ? (
+
                                                                     <div className="overflow-x-auto max-h-96">
-                                                                        <Table className="min-w-full border-collapse border border-gray-300 text-sm rounded-lg">
-                                                                            <TableHeader className="bg-gray-100 text-gray-900">
-                                                                                <TableRow>
-                                                                                    <TableHead className="py-3 px-4 text-left font-semibold text-gray-800">Descripción</TableHead>
-                                                                                    <TableHead className="hidden sm:table-cell py-3 px-4 text-center text-gray-800">Secuencia</TableHead>
-                                                                                    <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Última</TableHead>
-                                                                                    <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Frecuencia</TableHead>
-                                                                                    <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Próxima</TableHead>
-                                                                                    <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Resultado</TableHead>
-                                                                                    <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Registros</TableHead>
-                                                                                    <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Tiempo</TableHead>
-                                                                                </TableRow>
-                                                                            </TableHeader>
-                                                                            <TableBody>
-                                                                                {subTareas.map((subtarea) => (
-                                                                                    <TableRow key={subtarea.id}>
-                                                                                        <TableCell className="py-3 px-4">{subtarea.descripcion}</TableCell>
-                                                                                        <TableCell className="py-3 px-4">{subtarea.e_secuencia}</TableCell>
-                                                                                        <TableCell className="py-3 px-4">{formatDateTime(subtarea.e_ultima)}</TableCell>
-                                                                                        <TableCell className="py-3 px-4">{evento.e_frecuencia} {evento.e_frecuencia > 1 ? 'minutos' : 'minuto'}</TableCell>
-                                                                                        <TableCell className="py-3 px-4">{formatDateTime(subtarea.e_proxima)}</TableCell>
-                                                                                        <TableCell className="hidden md:table-cell text-center py-3 px-4">
-                                                                                            {subtarea.e_resultado === 'Finalizado' ? (
-                                                                                                <Badge className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-md">Finalizado</Badge>
-                                                                                            ) : subtarea.e_resultado === 'Error' ? (
-                                                                                                <Badge className="bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md">Error</Badge>
-                                                                                            ) : subtarea.e_resultado === 'Ejecutándose...' ? (
-                                                                                                <Badge className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-md">Ejecutándose...</Badge>
-                                                                                            ) : (
-                                                                                                <Badge className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-1 rounded-md">Pendiente</Badge>
-                                                                                            )}
-                                                                                        </TableCell>
-                                                                                        <TableCell className="py-3 px-4">{subtarea.i_comando}</TableCell>
-                                                                                        <TableCell className="py-3 px-4">{subtarea.tiempo_ejecucion}</TableCell>
+                                                                        {/* Mostrar Spinner */}
+                                                                        {loading ? (
+                                                                            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
+                                                                                <ClipLoader color="#007bff" loading={loading} size={50} />
+                                                                            </div>
+                                                                        ) : (
+
+                                                                            <Table className="min-w-full border-collapse border border-gray-300 text-sm rounded-lg">
+                                                                                <TableHeader className="bg-gray-100 text-gray-900">
+                                                                                    <TableRow>
+                                                                                        <TableHead className="py-3 px-4 text-left font-semibold text-gray-800">Descripción</TableHead>
+                                                                                        <TableHead className="hidden sm:table-cell py-3 px-4 text-center text-gray-800">Secuencia</TableHead>
+                                                                                        <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Última</TableHead>
+                                                                                        <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Frecuencia</TableHead>
+                                                                                        <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Próxima</TableHead>
+                                                                                        <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Resultado</TableHead>
+                                                                                        <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Registros</TableHead>
+                                                                                        <TableHead className="hidden md:table-cell py-3 px-4 text-center text-gray-800">Tiempo</TableHead>
                                                                                     </TableRow>
-                                                                                ))}
-                                                                            </TableBody>
-                                                                        </Table>
+                                                                                </TableHeader>
+                                                                                <TableBody>
+
+                                                                                    {subProcesosDetalle.map((subtarea) => (
+
+                                                                                        <TableRow key={subtarea.id}>
+
+                                                                                            <TableCell className="py-3 px-4">{subtarea.descripcion}</TableCell>
+                                                                                            <TableCell className="py-3 px-4">{subtarea.e_secuencia}</TableCell>
+                                                                                            <TableCell className="py-3 px-4">{formatDateTime(subtarea.e_ultima)}</TableCell>
+                                                                                            <TableCell className="py-3 px-4">{evento.e_frecuencia} {evento.e_frecuencia > 1 ? 'minutos' : 'minuto'}</TableCell>
+                                                                                            <TableCell className="py-3 px-4">{formatDateTime(subtarea.e_proxima)}</TableCell>
+                                                                                            <TableCell className="hidden md:table-cell text-center py-3 px-4">
+                                                                                                {subtarea.e_resultado === 'Finalizado' ? (
+                                                                                                    <Badge className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-md">Finalizado</Badge>
+                                                                                                ) : subtarea.e_resultado === 'Error' ? (
+                                                                                                    <Badge className="bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md">Error</Badge>
+                                                                                                ) : subtarea.e_resultado === 'Ejecutándose...' ? (
+                                                                                                    <Badge className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-md">Ejecutándose...</Badge>
+                                                                                                ) : (
+                                                                                                    <Badge className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-1 rounded-md">Pendiente</Badge>
+                                                                                                )}
+                                                                                            </TableCell>
+                                                                                            <TableCell className="py-3 px-4">{subtarea.i_comando}</TableCell>
+                                                                                            <TableCell className="py-3 px-4">{subtarea.tiempo_ejecucion}</TableCell>
+                                                                                        </TableRow>
+                                                                                    ))}
+                                                                                </TableBody>
+                                                                            </Table>
+                                                                        )}
                                                                     </div>
                                                                 ) : (
                                                                     <p className="text-gray-500">No hay subparámetros disponibles.</p>
@@ -340,7 +370,7 @@ const Migraciones = () => {
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="outline" className="text-blue-500 hover:bg-blue-50">
+                                                                    <Button variant="outline" className="text-gray-500 hover:bg-blue-50">
                                                                         {evento.cant_encontrados}
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -356,7 +386,11 @@ const Migraciones = () => {
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="outline" className="text-green-500 hover:bg-green-50">
+                                                                    <Button variant="outline"
+                                                                        className={`${evento.cant_insertados < evento.cant_encontrados
+                                                                                ? 'text-red-500 hover:bg-red-50'
+                                                                                : 'text-green-500 hover:bg-green-50'
+                                                                            }`} >
                                                                         {evento.cant_insertados}
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -384,3 +418,8 @@ const Migraciones = () => {
 };
 
 export default Migraciones;
+const Loader = () => (
+    <div className="loader">
+        <span>Cargando...</span>
+    </div>
+);
