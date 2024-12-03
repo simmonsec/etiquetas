@@ -38,6 +38,7 @@ class ParametrosMigraciones extends Controller
              'parametros.e_ultima',
              'parametros.e_resultado',
              'parametros.e_proxima',
+             'parametros.q_comando',
              'parametros.i_campos_deseados',
              'parametros.d_comando',
              'parametros.c_crearTabla',

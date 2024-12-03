@@ -231,10 +231,157 @@ const Migraciones = () => {
                                                     className={`w-3 h-3 rounded-full mr-2 ${evento.tipo === 2 ? 'bg-orange-500' : 'bg-blue-500'}`}
                                                 />
                                                 <p className="font-medium text-gray-800">
+                                                    <Sheet>
+                                                        <SheetTrigger>
+                                                            <span className="inline-block text-blue-600 hover:underline">
+                                                                <b>
+                                                                    {evento.tipo === 2 ? `${evento.descripcionprocesoprincipal} | ` : ""}
+                                                                </b>
+                                                                {evento.descripcion}
+                                                            </span>
+                                                        </SheetTrigger>
+                                                        <SheetContent side="top" className="p-6 bg-gray-50 shadow-md rounded-lg">
+                                                            <SheetHeader>
+                                                                <SheetTitle className="text-lg font-semibold text-gray-900">
+                                                                    {evento.tipo === 2
+                                                                        ? `${evento.descripcionprocesoprincipal} | `
+                                                                        : ""}
+                                                                    {evento.descripcion}
+                                                                </SheetTitle>
+                                                                <SheetDescription className="mt-4">
+                                                                    <div className="overflow-auto max-h-[400px]">
+                                                                        <table className="table-auto w-full border-collapse border border-gray-300 rounded-md">
+                                                                            <tbody className="text-sm text-gray-700">
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Tipo:</td>
+                                                                                    <td className="p-2">{evento.e_type}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Estado:</td>
+                                                                                    <td className="p-2">
+                                                                                        {evento.e_estado === "A" ? (
+                                                                                            <Badge className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-md">
+                                                                                                Activo
+                                                                                            </Badge>
+                                                                                        ) : (
+                                                                                            <Badge className="bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md">
+                                                                                                Inactivo
+                                                                                            </Badge>
+                                                                                        )}
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">
+                                                                                        Fecha próxima:
+                                                                                    </td>
+                                                                                    <td className="p-2">
+                                                                                        {evento.e_proxima
+                                                                                            ? new Date(evento.e_proxima).toLocaleString()
+                                                                                            : "No programada"}
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Secuencia:</td>
+                                                                                    <td className="p-2">{evento.e_secuencia}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Prioridad:</td>
+                                                                                    <td className="p-2">
+                                                                                        <span className="inline-block px-2 py-1 rounded bg-green-200 text-green-800">
+                                                                                            {evento.e_frecuencia}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">
+                                                                                        Última Ejecución:
+                                                                                    </td>
+                                                                                    <td className="p-2">{evento.e_ultima}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">
+                                                                                        Resultado Ejecución:
+                                                                                    </td>
+                                                                                    <td className="p-2">
+                                                                                        {evento.e_resultado === "Finalizado" ? (
+                                                                                            <Badge className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-md">
+                                                                                                Finalizado
+                                                                                            </Badge>
+                                                                                        ) : evento.e_resultado === "Error" ? (
+                                                                                            <Badge className="bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md">
+                                                                                                Error
+                                                                                            </Badge>
+                                                                                        ) : evento.e_resultado === "Ejecutándose..." ? (
+                                                                                            <Badge className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-md">
+                                                                                                Ejecutándose...
+                                                                                            </Badge>
+                                                                                        ) : (
+                                                                                            <Badge className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-1 rounded-md">
+                                                                                                Pendiente
+                                                                                            </Badge>
+                                                                                        )}
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Delete Ejecución:</td>
+                                                                                    <td className="p-2">{evento.d_comando}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Select Ejecución:</td>
+                                                                                    <td className="p-2">{evento.q_comando}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">
+                                                                                        Campos Deseados:
+                                                                                    </td>
+                                                                                    <td className="p-2">{evento.i_campos_deseados}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">¿Crear Tabla?</td>
+                                                                                    <td className="p-2">{!evento.c_crearTabla ? 'NO' : 'SI'}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Schema Tabla:</td>
+                                                                                    <td className="p-2">{evento.c_schema}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Nombre Tabla:</td>
+                                                                                    <td className="p-2">{evento.c_nombreTabla}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Encontrados:</td>
+                                                                                    <td className="p-2">{evento.cant_encontrados}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Insertados:</td>
+                                                                                    <td className="p-2">{evento.cant_insertados}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Tiempo Ejecución:</td>
+                                                                                    <td className="p-2">{evento.tiempo_ejecucion}</td>
+                                                                                </tr>
 
-                                                    <b>{evento.tipo === 2 ? `${evento.descripcionprocesoprincipal} | ` : ''} </b>   {evento.descripcion}
 
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">Creado:</td>
+                                                                                    <td className="p-2">{evento.created_at}</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td className="p-2 font-semibold text-gray-800">
+                                                                                        Actualizado:
+                                                                                    </td>
+                                                                                    <td className="p-2">{evento.updated_at}</td>
+                                                                                </tr>
+                                                                                {/* Agrega más filas aquí si es necesario */}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </SheetDescription>
+                                                            </SheetHeader>
+                                                        </SheetContent>
+                                                    </Sheet>
                                                 </p>
+
                                             </div>
 
                                             <div className="flex items-center space-x-3">
@@ -388,8 +535,8 @@ const Migraciones = () => {
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="outline"
                                                                         className={`${evento.cant_insertados < evento.cant_encontrados
-                                                                                ? 'text-red-500 hover:bg-red-50'
-                                                                                : 'text-green-500 hover:bg-green-50'
+                                                                            ? 'text-red-500 hover:bg-red-50'
+                                                                            : 'text-green-500 hover:bg-green-50'
                                                                             }`} >
                                                                         {evento.cant_insertados}
                                                                     </Button>
@@ -411,6 +558,8 @@ const Migraciones = () => {
                         </TableBody>
                     </Table>
                 </CardContent>
+
+
             </Card>
 
         </>
