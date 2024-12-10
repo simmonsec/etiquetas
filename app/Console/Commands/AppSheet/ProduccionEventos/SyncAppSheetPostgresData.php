@@ -45,10 +45,17 @@ class SyncAppSheetPostgresData extends Command
 
         // Llamada al servicio para obtener y almacenar los datos desde Google Sheets
         $this->AppSheetPostgresService->fetchAndStoreData();
-
         // Confirmación de que la sincronización ha sido completada exitosamente
         Log::info('Sincronización completada: Los datos se han almacenado exitosamente en la base de datos.');
         $logger->registrarEvento('Sincronización completada: Los datos se han almacenado exitosamente.');
+
+        Log::info('Iniciar proceso de migracion de ajustes para los descansos');
+        $logger->registrarEvento('Iniciar proceso de migracion de ajustes para los descansos');
+
+        $this->AppSheetPostgresService->fetchAndStoreDataAJUSTE();
+        
+        Log::info('Fin proceso de migracion de ajustes para los descansos');
+        $logger->registrarEvento('Fin proceso de migracion de ajustes para los descansos');
 
         // Registrar final de la sincronización
         $logger->registrarEvento('FIN');
@@ -62,7 +69,7 @@ class SyncAppSheetPostgresData extends Command
         $logger->registrarEvento('Iniciando actualización de ID en la base de datos de AppSheet para Producción de Eventos.');
 
         // Llamada al servicio para actualizar los datos en AppSheet basados en los ID ya almacenados
-        $this->AppSheetPostgresService->fetchAndUpdateData();
+        //$this->AppSheetPostgresService->fetchAndUpdateData();
 
         // Confirmación de la actualización exitosa
         Log::info('Actualización completada: Los ID en la base de datos han sido actualizados exitosamente.');

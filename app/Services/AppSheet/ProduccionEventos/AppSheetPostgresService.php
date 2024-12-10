@@ -2,6 +2,7 @@
 namespace App\Services\AppSheet\ProduccionEventos;
 
 use App\Models\ProduccionEventos;
+use App\Models\ProduccionEventos\ProduccionEventosAjuste;
 use App\Services\LoggerPersonalizado;
 use Google_Client;
 use Google_Service_Sheets;
@@ -19,6 +20,7 @@ class AppSheetPostgresService
     protected $range;
 
     protected $registrosActualizar = [];
+    protected $registrosActualizarAjustes = [];
     public function __construct()
     {
         $this->client = new Google_Client();
@@ -125,10 +127,107 @@ class AppSheetPostgresService
                     }
 
                     $this->registrosActualizar[] = $evento->preveID;
-                    print_r($evento);
+                    print_r("preveID: ".$evento->preveID."\n");
+                    print_r("preve_inicio_fecha: ".$evento->preve_inicio_fecha."\n");
+                    print_r("preve_inicio_hora: ".$evento->preve_inicio_hora."\n");
+                    print_r("preve_colID: ".$evento->preve_colID."\n");
+                    print_r("preve_eprtID: ".$evento->preve_eprtID."\n");
+                    print_r("preve_secID: ".$evento->preve_secID."\n");
+                    print_r("preve_referencia: ".$evento->preve_referencia."\n");
+                    print_r("--------------------------------------\n");
                     // Guardar el modelo en la base de datos
                     $evento->save();
                     $logger->registrarEvento('Evento guardado exitosamente con preveID: ' . $evento->preveID);
+                }
+            }
+
+        } catch (\Google_Service_Exception $e) {
+            $logger->registrarEvento('Error de la API de Google Sheets: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
+        }
+    }
+
+    public function fetchAndStoreDataAJUSTE()
+    {
+        // Inicializar el logger personalizado
+        $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'AppSheetProduccionEvento']);
+
+        try {
+            $response = $this->service->spreadsheets_values->get($this->spreadsheetId, 'AJUSTE');
+            $values = $response->getValues();
+
+            if (empty($values)) {
+                $logger->registrarEvento('No se encontraron datos en la hoja.');
+                throw new \Exception('No data found.');
+            }
+
+            // Asume que la primera fila son las cabeceras
+            $headers = array_shift($values);
+
+            foreach ($values as $row) {
+                // Asegúrate de que la fila tenga el mismo número de columnas que las cabeceras
+                if (count($row) !== count($headers)) {
+                    $logger->registrarEvento('Número de columnas en la fila no coincide con el número de cabeceras.');
+                    continue;
+                }
+
+                // Mapear los datos a un array asociativo usando las cabeceras
+                $data = array_combine($headers, $row);
+
+                // Filtrar solo las filas que tienen preve_estado = 'N'
+                if (isset($data['ajst_estado']) && $data['ajst_estado'] === 'N') {
+                    
+                    // Crear una instancia del modelo y asignar valores
+                    //ajstID	ajst_colID	ajst_fecha	ajst_adjustar	ajst_nota	ajst_creado_por	ajst_estado	created_at	updated_at
+                    $evento = new ProduccionEventosAjuste();
+                    $evento->ajstID = $data['ajstID'] ?? 0;
+                    $evento->ajst_colID = $data['ajst_colID'] ?? null;
+                    $evento->ajst_adjustar = $data['ajst_adjustar'] ?? null;
+                    $evento->ajst_nota = $data['ajst_nota'] ?? null;
+                    $evento->ajst_estado = $data['ajst_estado'] ?? null;
+
+                    // Verifica y convierte preve_inicio_fecha
+                    if (!empty($data['ajst_fecha'])) {
+                        $evento->ajst_fecha = \Carbon\Carbon::createFromFormat('j/n/Y', $data['ajst_fecha']);
+                    } else {
+                        $evento->ajst_fecha = null;
+                    }
+
+              
+                    //$evento->preve_estado = $data['preve_estado'] ?? null;
+                    $evento->ajst_creado_por = $data['ajst_creado_por'] ?? null;
+
+                    // Verifica y convierte created_at
+                    if (!empty($data['created_at'])) {
+                        $evento->created_at = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $data['created_at']);
+                    } else {
+                        $evento->created_at = null;
+                    }
+
+                    // Verifica y convierte updated_at
+                    if (!empty($data['updated_at'])) {
+                        $evento->updated_at = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $data['updated_at']);
+                    } else {
+                        $evento->updated_at = null;
+                    }
+
+              
+
+                    $this->registrosActualizarAjustes[] = $evento->ajstID;
+                    print_r("ajstID: ".$evento->ajstID."\n");
+                    print_r("ajst_colID: ".$evento->ajst_colID."\n");
+                    print_r("ajst_fecha: ".$evento->ajst_fecha."\n");
+                    print_r("ajst_ajustar: ".$evento->ajst_ajustar."\n");
+                    print_r("ajst_nota: ".$evento->ajst_nota."\n");
+                    print_r("ajst_creado_por: ".$evento->ajst_creado_por."\n");
+                    print_r("ajst_estado: ".$evento->ajst_estado."\n");
+                    print_r("created_at: ".$evento->created_at."\n");
+                    print_r("updated_at: ".$evento->updated_at."\n");
+                    print_r("--------------------------------------\n");
+                    // Guardar el modelo en la base de datos
+                    $evento->save();
+                    $logger->registrarEvento('AJUSTES guardado exitosamente con ajstID: ' . $evento->ajstID);
                 }
             }
 
