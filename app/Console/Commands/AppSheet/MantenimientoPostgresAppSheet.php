@@ -58,6 +58,7 @@ class MantenimientoPostgresAppSheet extends Command
             // Exportar datos a las hojas electrónicas
             $this->mantenimientoPostgresAppSheet->exportDataToSheets(env('GOOGLE_SHEETS_SPREADSHEET_ID_CLNVISITA')); // duplicar para poder asignar otra hoja electronica
             $this->mantenimientoPostgresAppSheet->exportDataToSheets(env('GOOGLE_SHEETS_SPREADSHEET_ID')); // hoja electronica produccion eventos
+            $this->mantenimientoPostgresAppSheet->exportDataToSheets(env('GOOGLE_SHEETS_SPREADSHEET_ID_LOGISTICA')); // hoja electronica produccion eventos
     
             // Registro de finalización exitosa de la exportación
             Log::info('La exportación de datos se ha completado exitosamente.');
