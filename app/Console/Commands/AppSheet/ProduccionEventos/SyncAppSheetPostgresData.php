@@ -69,7 +69,7 @@ class SyncAppSheetPostgresData extends Command
         $logger->registrarEvento('Iniciando actualización de ID en la base de datos de AppSheet para Producción de Eventos.');
 
         // Llamada al servicio para actualizar los datos en AppSheet basados en los ID ya almacenados
-        //$this->AppSheetPostgresService->fetchAndUpdateData();
+        $this->AppSheetPostgresService->fetchAndUpdateData();
 
         // Confirmación de la actualización exitosa
         Log::info('Actualización completada: Los ID en la base de datos han sido actualizados exitosamente.');
