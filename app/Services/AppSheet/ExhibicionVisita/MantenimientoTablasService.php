@@ -53,8 +53,8 @@ class MantenimientoTablasService
 
         $this->service = new Google_Service_Sheets($this->client); 
          
-        $this->rangeCln_clienteVisitaTipo_tb = 'cln_clienteVisitaTipo_tb'; // Hoja electrónica
-        $this->rangeEVENTOS_TIPO = 'EVENTOS_TIPO'; // Hoja electrónica
+        //$this->rangeCln_clienteVisitaTipo_tb = 'cln_clienteVisitaTipo_tb'; // Hoja electrónica
+        
     }
 
     public function fetchAndStoreData($spreadsheetId)
@@ -64,12 +64,14 @@ class MantenimientoTablasService
          * son hojas que no cumplen con una gestion pero sin son parte de ellas, y cuando se agreguen en la hoja electronica una 
          */
          
-        $this->importData(ClienteVisitaTipo::class, 'cvtpID', $this->rangeCln_clienteVisitaTipo_tb);
-        $this->importData(EventoTipo::class, 'eprtID', $this->rangeEVENTOS_TIPO);
+        //$this->importData(ClienteVisitaTipo::class, 'cvtpID', $this->rangeCln_clienteVisitaTipo_tb);
+        //$this->importData(EventoTipo::class, 'eprtID', $this->rangeEVENTOS_TIPO);
     }
 
     public function importData($model, $primaryKey, $range)
     {
+        if($range){
+
            // Crear instancia del logger personalizado
            $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'SycAppSheetPostgres']);
      
@@ -129,5 +131,9 @@ class MantenimientoTablasService
             Log::error('Ocurrió un error inesperado: ' . $e->getMessage());
             $logger->registrarEvento('Ocurrió un error inesperado: ' . $e->getMessage());
         }
+        
+    }else{
+        Log::info('No se encontraron procesos a ejecutar.');
+    }
     }
 }
