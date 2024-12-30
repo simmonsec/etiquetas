@@ -80,8 +80,8 @@ class MantenimientoPostgresAppSheetService
         //$this->exportTableToSheet(Transporte::class, 'trp id', $this->transporteRange);
         //$this->exportTableToSheet(Choferes::class, 'tcf id', $this->choferesRange);
         //$this->exportTableToSheet(EntregaDoc::class, 'endc_id', $this->entregadocRange);
-       // $this->exportTableToSheet(EntregaDocEventos::class, 'enev_id', $this->entregadoceventosRange);
-       //$this->exportTableToSheet(LogisticaCliente::class, 'clnID', $this->clienteRange);
+        //$this->exportTableToSheet(EntregaDocEventos::class, 'enev_id', $this->entregadoceventosRange);
+        //$this->exportTableToSheet(LogisticaCliente::class, 'clnID', $this->clienteRange);
        
         // Obtén los datos de la base de datos una sola vez, para cuando necesito pasar a dos hojas electronica la misma informacion. ojo que debe ser la misma estructura en este caso esto pasando la lista de producto para la hoja electronica de despacho y exhibiciones. porque manejan la misma tabla. en caso de que solo sea para una sola hoja electronica solo pasar el modelo como el caso de arriba.
         $productosActualizados = Producto::where('is_updated', true)->get()->toArray();
@@ -183,7 +183,7 @@ class MantenimientoPostgresAppSheetService
     
                 Log::info("Datos actualizados en la hoja: {$range}");
                 $logger->registrarEvento("Datos actualizados en la hoja: {$range}");
-                $model::where('is_updated', true)->update(['is_updated' => false, 'updated_at' => \Carbon\Carbon::now()->format('Y-m-d H:i:s')]);
+                //$model::where('is_updated', true)->update(['is_updated' => false, 'updated_at' => \Carbon\Carbon::now()->format('Y-m-d H:i:s')]);
             }
         } catch (\Exception $e) {
             Log::error("Error al exportar los datos a la hoja: " . $e->getMessage());

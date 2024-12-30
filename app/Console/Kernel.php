@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Artisan;
@@ -62,6 +63,7 @@ class Kernel extends ConsoleKernel
         /**
          * Sincronizar datos de eventos de produccion y novedades
          */
+        Log::info('Iniciando el comando syncPostgresAppSheet:produccionEventos');
         $schedule->command('syncPostgresAppSheet:produccionEventos')
             ->everyFiveMinutes() // Ajustado a cada 5 minutos para sincronización frecuente
             ->onOneServer()
