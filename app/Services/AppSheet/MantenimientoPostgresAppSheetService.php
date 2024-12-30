@@ -157,8 +157,8 @@ class MantenimientoPostgresAppSheetService
     
                 if (isset($sheetData[$record[$primaryKey]])) {
                     $sheetData[$record[$primaryKey]] = $recordArray;
-                    Log::info("Registro actualizado en la hoja: " . $record[$primaryKey]);
-                    $logger->registrarEvento("Registro actualizado en la hoja: " . $record[$primaryKey]);
+                    //Log::info("Registro actualizado en la hoja: " . $record[$primaryKey]);
+                    //$logger->registrarEvento("Registro actualizado en la hoja: " . $record[$primaryKey]);
                 } else {
                     $record['created_at'] = \Carbon\Carbon::now()->format('Y-m-d H:i:s');
                     $sheetData[$record[$primaryKey]] = $recordArray;
