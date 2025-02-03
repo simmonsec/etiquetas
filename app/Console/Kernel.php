@@ -16,7 +16,7 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [ 
         'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros',
-         'App\Console\Commands\Migraciones\migrarDatosOdbc'
+         //'App\Console\Commands\Migraciones\migrarDatosOdbc'
     ];
 
     /**
@@ -33,15 +33,7 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->withoutOverlapping();
     
-        /**
-         * Migración del MBA a Postgres
-         
-        $schedule->command('migrar:odbc')
-            ->hourly() // Mantener cada hora
-            ->onOneServer()
-            ->runInBackground()
-            ->withoutOverlapping();
-    */
+      
         /**
          * Aplicación de Producción Eventos
          */
