@@ -2,6 +2,8 @@
 namespace App\Services\AppSheet\ProduccionEventos;
 
 use App\Models\ProduccionEventos;
+use App\Models\ProduccionEventos_b;
+use App\Models\ProduccionEventoColab;
 use App\Models\ProduccionEventos\ProduccionEventosAjuste;
 use App\Services\LoggerPersonalizado;
 use Google_Client;
@@ -61,10 +63,10 @@ class AppSheetPostgresService
                     $logger->registrarEvento('Número de columnas en la fila no coincide con el número de cabeceras.');
                     continue;
                 }
-
+               
                 // Mapear los datos a un array asociativo usando las cabeceras
                 $data = array_combine($headers, $row);
-
+               
                 // Filtrar solo las filas que tienen preve_estado = 'N'
                 if (isset($data['preve_estado']) && $data['preve_estado'] === 'N') {
                     
@@ -75,14 +77,14 @@ class AppSheetPostgresService
                     $evento->preve_eprtID = $data['preve_eprtID'] ?? 0;
                     $evento->preve_secID = $data['preve_secID'] ?? 0;
                     $evento->preve_referencia = $data['preve_referencia'] ?? null;
-
+                  
                     // Verifica y convierte preve_inicio_fecha
                     if (!empty($data['preve_inicio_fecha'])) {
                         $evento->preve_inicio_fecha = \Carbon\Carbon::createFromFormat('j/n/Y', $data['preve_inicio_fecha']);
                     } else {
                         $evento->preve_inicio_fecha = null;
                     }
-
+                
                     // Verifica y convierte preve_inicio_hora
                     if (!empty($data['preve_inicio_hora'])) {
                         $evento->preve_inicio_hora = \Carbon\Carbon::createFromFormat('H:i:s', $data['preve_inicio_hora']);
@@ -106,7 +108,7 @@ class AppSheetPostgresService
                     } else {
                         $evento->updated_at = null;
                     }
-
+                   
                     try {
                         // Convierte la fecha al formato deseado y luego a un valor numérico
                         $fechaFormateada = Carbon::createFromFormat('d/m/Y', $data['preve_inicio_fecha'])->format('Ymd');
@@ -135,9 +137,89 @@ class AppSheetPostgresService
                     print_r("preve_secID: ".$evento->preve_secID."\n");
                     print_r("preve_referencia: ".$evento->preve_referencia."\n");
                     print_r("--------------------------------------\n");
-                    // Guardar el modelo en la base de datos
-                    $evento->save();
-                    $logger->registrarEvento('Evento guardado exitosamente con preveID: ' . $evento->preveID);
+
+                    try {
+                        // Verificar si existe un registro igual en ProduccionEventos
+                        $existingEvent = ProduccionEventos::where('preve_inicio_fecha', $evento->preve_inicio_fecha)
+                                                ->where('preve_inicio_hora', $evento->preve_inicio_hora)
+                                                ->where('preve_colID', $evento->preve_colID)
+                                                ->where('preve_eprtID', $evento->preve_eprtID)
+                                                ->first();
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error al verificar ProduccionEventos: ' . $e->getMessage());
+                         Log::info('Error al verificar ProduccionEventos: ' . $e->getMessage());
+                        $existingEvent = null; // Evita referencias a una variable no definida
+                    }
+                    
+                    try {
+                        // Verificar si existe un registro igual en ProduccionEventos_b
+                        $existingEvent_b = ProduccionEventos_b::where('preve_inicio_fecha', $evento->preve_inicio_fecha)
+                                                ->where('preve_inicio_hora', $evento->preve_inicio_hora)
+                                                ->where('preve_colID', $evento->preve_colID)
+                                                ->where('preve_eprtID', $evento->preve_eprtID)
+                                                ->first();
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error al verificar ProduccionEventos_b: ' . $e->getMessage());
+                         Log::info('Error al verificar ProduccionEventos_b: ' . $e->getMessage());
+                        $existingEvent_b = null;
+                    }
+                    
+                    try {
+                        // Verificar si existe un registro igual en ProduccionEventoColab
+                        $existingEventColab = ProduccionEventoColab::where('prevc_inicio_fecha', $evento->preve_inicio_fecha)
+                                                ->where('prevc_inicio_hora', $evento->preve_inicio_hora)
+                                                ->where('prevc_colID', $evento->preve_colID)
+                                                ->where('prevc_eprtID', $evento->preve_eprtID)
+                                                ->first();
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error al verificar ProduccionEventoColab: ' . $e->getMessage());
+                         Log::info('Error al verificar ProduccionEventoColab: ' . $e->getMessage());
+                        $existingEventColab = null;
+                    }
+                    
+                    // Intentar eliminar cada registro si existe
+                    try {
+                        if ($existingEvent) {
+                            $existingEvent->delete();
+                            $logger->registrarEvento('Registro eliminado en ProduccionEventos con preveID: ' . $existingEvent->preveID);
+                             Log::info('Registro eliminado en ProduccionEventos con preveID: ' . $existingEvent->preveID);
+                        }
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error eliminando en ProduccionEventos: ' . $e->getMessage());
+                         Log::info('Error eliminando en ProduccionEventos: ' . $e->getMessage());
+                    }
+                    
+                    try {
+                        if ($existingEvent_b) {
+                            $existingEvent_b->delete();
+                            $logger->registrarEvento('Registro eliminado en ProduccionEventos_b.');
+                             Log::info('Registro eliminado en ProduccionEventos_b.');
+                        }
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error eliminando en ProduccionEventos_b: ' . $e->getMessage());
+                         Log::info('Error eliminando en ProduccionEventos_b: ' . $e->getMessage());
+                    }
+                    
+                    try {
+                        if ($existingEventColab) {
+                            $existingEventColab->delete();
+                            $logger->registrarEvento('Registro eliminado en ProduccionEventoColab.');
+                             Log::info('Registro eliminado en ProduccionEventoColab.');
+                        }
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error eliminando en ProduccionEventoColab: ' . $e->getMessage());
+                         Log::info('Error eliminando en ProduccionEventoColab: ' . $e->getMessage());
+                    }
+
+                    
+                    try {
+                        $evento->save();
+                        $logger->registrarEvento('Evento guardado exitosamente con preveID: ' . $evento->preveID);
+                         Log::info('Evento guardado exitosamente con preveID: ' . $evento->preveID);
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error al guardar el evento con preveID: ' . $evento->preveID . ' - ' . $e->getMessage());
+                         Log::info('Error al guardar el evento con preveID: ' . $evento->preveID . ' - ' . $e->getMessage());
+                    }
                 }
             }
 

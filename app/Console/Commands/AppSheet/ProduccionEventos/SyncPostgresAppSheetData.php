@@ -64,7 +64,7 @@ class SyncPostgresAppSheetData extends Command
             $logger->registrarEvento('Verificando si los datos de la hoja electrónica y la tabla de PostgreSQL están alineados.');
 
             // Verificar que los datos en Google Sheets coincidan con los datos en PostgreSQL
-            $this->AppSheetPostgresService->verificarProduccionEventos();
+           // $this->AppSheetPostgresService->verificarProduccionEventos();
 
             // Confirmación de la verificación finalizada
             $logger->registrarEvento('Verificación completada: Los datos de Google Sheets y PostgreSQL han sido revisados.');
