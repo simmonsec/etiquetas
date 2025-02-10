@@ -194,6 +194,7 @@ class PostgresAppSheetService
                         ) fecha
                     WHERE 
                         col."col_estado" = \'A\'  -- Solo colaboradores activos
+                        AND fecha."dim_fecha" >= col.col_fecha_ingreso 
                 ),
                 -- 2. Unir con prod_app_produccionEventoColab_tb para determinar los días que faltan
                 registros_faltantes AS (
