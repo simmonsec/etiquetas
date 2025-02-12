@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class GnlMigrarDatosOdbc extends Command
 {
     // Definición del comando que se ejecutará en la consola
-    protected $signature = 'mbaMigrar:mba3';
+    protected $signature = 'mbaMigrar:mba3ESTONOFUNCIONAPORAQUISINOENPOSTGRES';
     protected $description = 'Proceso para migrar datos generales a esquema del MBA3';
 
     public function __construct()

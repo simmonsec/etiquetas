@@ -24,8 +24,7 @@ class migrarDatosOdbc extends Command
     public function handle()
     {
         // Truncar la tabla asociada con el modelo
-        //DB::statement('TRUNCATE TABLE "MBA3"."INVT_Producto_Movimientos"');
-        //print_r('ELIMINAR DATOS DE LA TABLA INVT_Producto_Movimientos \n');
+        
         //print_r("\n");
         $logger = app()->make(LoggerPersonalizado::class, ['nombreAplicacion' => 'Gnl_Parametros_Consultas_ERP']);
         // Obtener datos para la conexión y ejecución
