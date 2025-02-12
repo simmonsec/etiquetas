@@ -78,7 +78,9 @@ class SyncAppSheetPostgresData extends Command
         // Registrar final de la actualización
         $logger->registrarEvento('FIN');
 
-       
+        /// nuevos procesos para mantenimientos
+        $this->AppSheetPostgresService->getEliminar();
+        $this->AppSheetPostgresService->getModifica();
         // Finalizar el proceso de sincronización
         Log::info("--------------------------Fin Sincronización Google Sheet Producción de Eventos-------------------------------------------");
 
