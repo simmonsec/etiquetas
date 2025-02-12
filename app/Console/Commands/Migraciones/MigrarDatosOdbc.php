@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class migrarDatosOdbc extends Command
 {
-    protected $signature = 'migrar:odbc';
+    protected $signature = 'migrar:odbcPROCESOREMPLAZADOPORPYTHONYPOSTGRES';
     protected $description = 'Proceso para migrar datos';
 
     public function __construct()
