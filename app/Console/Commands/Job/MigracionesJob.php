@@ -5,6 +5,7 @@ namespace App\Console\Commands\Job;
   
 use Illuminate\Console\Command; 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MigracionesJob extends Command
 {
@@ -17,7 +18,7 @@ class MigracionesJob extends Command
 
     public function handle()
     {
-
+        Log::info("-----------Se Ejecuto La migraciones de PL/PYTHON------------");
         //falta determinar si lo ejecuto por aqui o por postgres, en las tareas programadas de pgagente
         // flujo de la tarea, PARA EJECUARAR TAREAS DE POSTGRES
         DB::statement('SELECT "MBA3".mba2_postgres_read_py()');
