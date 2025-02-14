@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [ 
         'App\Console\Commands\Comunicaciones\Stock\Terceros\InventarioTerceros',
          //'App\Console\Commands\Migraciones\migrarDatosOdbc'
+         'App\Console\Commands\Job\MigracionesJob',
     ];
 
     /**
