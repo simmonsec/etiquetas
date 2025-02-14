@@ -25,6 +25,14 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         /**
+         * MIGRACIONES MBA CON PYTHON Y POSTGRES PL/PYTHON
+         */
+        $schedule->command('funcion:migracionesmba')
+            ->everySecond() // Mantener cada 30 minutos para reducir la carga
+            ->onOneServer()
+            ->runInBackground()
+            ->withoutOverlapping();
+        /**
          * Inventario terceros
          */
         $schedule->command('inventario:terceros')
