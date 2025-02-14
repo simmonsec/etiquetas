@@ -29,10 +29,7 @@ class Kernel extends ConsoleKernel
          * MIGRACIONES MBA CON PYTHON Y POSTGRES PL/PYTHON
          */
         $schedule->command('funcion:migracionesmba')
-            ->everySecond() // Mantener cada 30 minutos para reducir la carga
-            ->onOneServer()
-            ->runInBackground()
-            ->withoutOverlapping();
+            ->everySecond();
         /**
          * Inventario terceros
          */
