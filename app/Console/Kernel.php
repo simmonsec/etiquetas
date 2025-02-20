@@ -28,8 +28,7 @@ class Kernel extends ConsoleKernel
         /**
          * MIGRACIONES MBA CON PYTHON Y POSTGRES PL/PYTHON
          */
-        $schedule->command('funcion:migracionesmba')
-            ->everySecond();
+        //$schedule->command('funcion:migracionesmba') ->everySecond(); se detiene porque debemos ejecutarla desde PGAGENTE POSTGRES
         /**
          * Inventario terceros
          */
