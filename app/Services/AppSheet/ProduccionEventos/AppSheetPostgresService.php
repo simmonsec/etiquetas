@@ -310,6 +310,10 @@ class AppSheetPostgresService
                     }
 
                     try {
+                         // Convierte la hora al formato deseado y luego a un valor numérico
+                      $horaFormateada = Carbon::createFromFormat('H:i:s', $data['preve_inicio_hora'])->format('Hi');
+                      // Convierte a un valor numérico
+                      $prevc_inicio_hora_ref = (int) $horaFormateada;
                         // Verificar si existe un registro igual en ProduccionEventos y actualizarlo
                         $updatedRows = ProduccionEventos_b::where('preveID', $data['preveID'])
                             ->update([
@@ -318,6 +322,7 @@ class AppSheetPostgresService
                                 'preve_referencia' => $data['preve_referencia'],   // Actualizar preve_referencia
                                 'preve_inicio_fecha' => $data['preve_inicio_fecha'],   // Actualizar preve_inicio_fecha
                                 'preve_inicio_hora' => $data['preve_inicio_hora'],   // Actualizar preve_inicio_hora
+                                'preve_inicio_hora_ref' => $prevc_inicio_hora_ref, 
                                 'preve_colID' => $data['preve_colID'],   // Actualizar preve_colID
                             ]);
                 
