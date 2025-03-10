@@ -212,6 +212,39 @@ class AppSheetPostgresService
                     }
 
 
+                    //Verifica si existe un registro con mayor fecha al que esta ingresando 
+                    try {
+                        // Verificar si existe un registro igual en ProduccionEventoColab
+                        $existingEventMayorAeste = ProduccionEventoColab::where('prevc_inicio_fecha_ref', $evento->preve_inicio_fecha_ref)
+                        ->where('prevc_colID', $evento->preve_colID)
+                        ->where('prevc_inicio_fecha_ref','>' ,$evento->preve_inicio_hora_ref)
+                        ->first();
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error al verificar ProduccionEventoColab si existe un evento mayor al que ingresa: ' . $e->getMessage());
+                        Log::info('Error al verificar ProduccionEventoColab si existe un evento mayor al que ingresa: ' . $e->getMessage());
+                        $existingEventMayorAeste = null;
+                    }
+
+                    // si encuentra registro elimina los datos y actualiza los de la tabla b para que se vuelvan a migrar. 
+                    try {
+                        if ($existingEventMayorAeste) {
+                            Log::info("***** Entro a eliminar el registro mayor a este*****");
+                            Log::info($existingEventMayorAeste);
+                            DB::statement(' DELETE FROM "Simmons01"."prod_app_produccionEventoColab_tb" WHERE "prevc_inicio_fecha_ref" = '.$evento->preve_inicio_fecha_ref.' AND "prevc_colID" = '.$evento->preve_colID.'');
+                            //actualizar estados de la tabla b
+                            DB::statement('UPDATE "Simmons01"."prod_app_produccionEvento_b_tb" SET "preve_estado" = \'N\' WHERE "preve_inicio_fecha_ref" = '.$evento->preve_inicio_fecha_ref.' AND "preve_colID" = '.$evento->preve_colID.'');
+                            $logger->registrarEvento('Se eliminaron los registros de la tabla ProduccionEventoColab y se actualizaron los registro de la tabla ProduccionEventos_b. id: '.$evento->preveID. ' - '.$evento->preve_colID);
+                            Log::info('Se eliminaron los registros de la tabla  ProduccionEventoColab y se actualizaron los registro de la tabla ProduccionEventos_b. id: '.$evento->preveID. ' - '.$evento->preve_colID);
+                        }
+                    } catch (\Exception $e) {
+                        $logger->registrarEvento('Error eliminando en ProduccionEventoColab: ' . $e->getMessage());
+                        Log::info('Error eliminando en ProduccionEventoColab: ' . $e->getMessage());
+                    }
+
+ 
+
+
+
                     try {
                         $evento->save();
                         $logger->registrarEvento('Evento guardado exitosamente con preveID: ' . $evento->preveID);
