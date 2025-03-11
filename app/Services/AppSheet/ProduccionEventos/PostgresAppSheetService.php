@@ -170,6 +170,7 @@ class PostgresAppSheetService
                 AND t2."prevc_inicio_fecha" = CURRENT_DATE
             )
             AND t1.col_estado = \'A\'
+            AND t1.col_fecha_egreso IS NULL
         )
             
         UNION(
@@ -195,6 +196,7 @@ class PostgresAppSheetService
                     WHERE 
                         col."col_estado" = \'A\'  -- Solo colaboradores activos
                         AND fecha."dim_fecha" >= col.col_fecha_ingreso 
+                        AND col_fecha_egreso IS NULL
                 ),
                 -- 2. Unir con prod_app_produccionEventoColab_tb para determinar los días que faltan
                 registros_faltantes AS (
