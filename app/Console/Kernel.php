@@ -43,7 +43,7 @@ class Kernel extends ConsoleKernel
          * Aplicación de Producción Eventos
          */
         $schedule->command('syncAppSheetPostgres:produccionEventos')
-            ->everyTwoMinutes() // Mantener cada 2 minutos para alta frecuencia
+            ->everyMinute() // Mantener cada 2 minutos para alta frecuencia
             ->onOneServer()
             ->runInBackground()
             ->withoutOverlapping();
