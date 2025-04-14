@@ -25,13 +25,11 @@
         <tr>
             <td align="center" valign="middle" style="padding: 20px 0;">
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
-                    <!-- Header -->
                     <tr>
-                        <td style="background-color: {% if $estado === 'RECHAZADO' %}#FF5733{% elseif !$nombreArchivo %}#FFC300{% else %}#3CB371{% endif %}; color: #ffffff; text-align: center; padding: 20px 0; font-size: 1.5em; border-bottom: 2px solid {% if $estado === 'RECHAZADO' %}#FF8C8C{% elseif !$nombreArchivo %}#FFD787{% else %}#98FB98{% endif %};">
+                        <td style="background-color: #37388D; color: #ffffff; text-align: center; padding: 20px 0; font-size: 1.5em; border-bottom: 2px solid #8EB8E0;">
                             <div style="font-size: 1.2em; margin-bottom: 10px;">SIMMONS</div>
                         </td>
                     </tr>
-                    <!-- Body -->
                     <tr>
                         <td style="padding: 20px; text-align: left;">
                             <div style="margin-bottom: 20px;">
@@ -78,9 +76,8 @@
                             </div>
                         </td>
                     </tr>
-                    <!-- Footer -->
                     <tr>
-                        <td style="text-align: center; padding: 10px 0; background-color: {% if $estado === 'RECHAZADO' %}#FF5733{% elseif !$nombreArchivo %}#FFC300{% else %}#3CB371{% endif %}; font-size: 0.8em; color: #ffffff; border-top: 2px solid {% if $estado === 'RECHAZADO' %}#FF8C8C{% elseif !$nombreArchivo %}#FFD787{% else %}#98FB98{% endif %}; border-radius: 0 0 8px 8px;">
+                        <td style="text-align: center; padding: 10px 0; background-color: #37388D; font-size: 0.8em; color: #ffffff; border-top: 2px solid #8EB8E0; border-radius: 0 0 8px 8px;">
                             <p>&copy; {{ date('Y') }} Simmons. Todos los derechos reservados.</p>
                         </td>
                     </tr>
